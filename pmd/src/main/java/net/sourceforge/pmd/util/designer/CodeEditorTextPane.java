@@ -1,3 +1,6 @@
+/**
+ * BSD-style license; for more info see http://pmd.sourceforge.net/license.html
+ */
 package net.sourceforge.pmd.util.designer;
 
 import javax.swing.JTextPane;
@@ -26,7 +29,7 @@ public class CodeEditorTextPane extends JTextPane implements LineGetter {
             if (count == line) {
                 int linePos = 0;
                 int i;
-                for (i = 0; linePos < column; i++) {
+                for (i = 0; linePos < column && linePos < tok.length(); i++) {
                     linePos++;
                     if (tok.charAt(i) == '\t') {
                         linePos--;
