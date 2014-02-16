@@ -523,6 +523,7 @@ public class Foo extends Bar {
 ]]>
    </example>
 </rule>
+-->
 
     <rule
       language="plsql"
@@ -539,7 +540,10 @@ have more fine grained objects.
         </description>
         <priority>3</priority>
         <properties>
-                <property name="maxmethods" type="Integer" description="The method count reporting threshold" min="1" max="1000" value="1"/>
+	    <property name="version">
+	    <value>1.0 compatibility</value>
+	    </property>
+	     <property name="maxmethods" type="Integer" description="The method count reporting threshold" min="1" max="1000" value="10"/>
                 <property name="xpath">
                 <value>
                     <![CDATA[
@@ -579,6 +583,5 @@ have more fine grained objects.
             </property>
         </properties>
     </rule>
--->
 
 </ruleset>

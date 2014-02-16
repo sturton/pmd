@@ -19,6 +19,9 @@ The Dates ruleset deals with PLSQL DATETIME usages.
   </description>
   <priority>3</priority>
   <properties>
+    <property name="version">
+    <value>1.0 compatibility</value>
+    </property>
     <property name="xpath">
     <value>
 <![CDATA[
@@ -70,6 +73,9 @@ END date_utilities ;
   </description>
   <priority>3</priority>
   <properties>
+    <property name="version">
+    <value>1.0 compatibility</value>
+    </property>
     <property name="xpath">
     <value>
 <![CDATA[
@@ -113,6 +119,9 @@ END date_utilities ;
   </description>
   <priority>3</priority>
   <properties>
+    <property name="version">
+    <value>1.0 compatibility</value>
+    </property>
     <property name="xpath">
     <value>
 <![CDATA[
