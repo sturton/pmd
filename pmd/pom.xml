@@ -5,7 +5,7 @@
     <groupId>net.sourceforge.pmd</groupId>
     <artifactId>pmd</artifactId>
     <name>PMD</name>
-    <version>5.1.0-SNAPSHOT</version>
+    <version>5.1.1-SNAPSHOT</version>
 
     <parent>
         <groupId>org.sonatype.oss</groupId>
@@ -243,6 +243,7 @@
         <connection>scm:git:git://github.com/pmd/pmd.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/pmd/pmd.git</developerConnection>
         <url>https://github.com/pmd/pmd</url>
+        <tag>pmd/5.1.x</tag>
     </scm>
     <organization>
         <name>InfoEther</name>
@@ -258,7 +259,7 @@
             If the xdocs files stay in src/site/xdoc/, mvn tries to copy over the generated
             one, and complains... -->
         <src.xdocs.dir>src/site/xdocs</src.xdocs.dir>
-        <pmd.website.baseurl>http://pmd.sourceforge.net/snapshot</pmd.website.baseurl>
+        <pmd.website.baseurl>http://pmd.sourceforge.net/pmd-${project.version}</pmd.website.baseurl>
     </properties>
 
     <build>
@@ -604,9 +605,9 @@
           <version>1.27</version>
         </dependency>
         <dependency>
-            <groupId>asm</groupId>
+            <groupId>org.ow2.asm</groupId>
             <artifactId>asm</artifactId>
-            <version>3.2</version>
+            <version>5.0_BETA</version>
         </dependency>
         <dependency>
             <groupId>net.sourceforge.saxon</groupId>
@@ -634,7 +635,7 @@
             <artifactId>xercesImpl</artifactId>
             <version>2.9.1</version>
             <type>jar</type>
-            <scope>runtime</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>net.java.dev.javacc</groupId>

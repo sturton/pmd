@@ -1,4 +1,8 @@
 /**
+ * Added support for Java 8 language constructs.
+ *
+ * Andreas Dangel 01/2014
+ * ===================================================================
  * Fix ForStatement to allow Annotations within the initializer.
  *
  * Andreas Dangel 01/2013
@@ -113,82 +117,118 @@ public class JavaParser {
    this.jdkVersion = jdkVersion;
   }
 
+  private void throwParseException(String message) {
+    int line = -1;
+    int col = -1;
+    if (jj_lastpos != null) {
+      line = jj_lastpos.beginLine;
+      col = jj_lastpos.beginColumn;
+    }
+    throw new ParseException("Line " + line + ", Column " + col + ": " + message);
+  }
+
   private void checkForBadAssertUsage(String in, String usage) {
     if (jdkVersion > 3 && in.equals("assert")) {
-      throw new ParseException("Can't use 'assert' as " + usage + " when running in JDK 1.4 mode!");
+      throwParseException("Can't use 'assert' as " + usage + " when running in JDK 1.4 mode!");
     }
   }
 
   private void checkForBadStaticImportUsage() {
     if (jdkVersion < 5) {
-      throw new ParseException("Can't use static imports when running in JDK 1.4 mode!");
+      throwParseException("Can't use static imports when running in JDK 1.4 mode!");
     }
   }
 
   private void checkForBadAnnotationUsage() {
     if (jdkVersion < 5) {
-      throw new ParseException("Can't use annotations when running in JDK 1.4 mode!");
+      throwParseException("Can't use annotations when running in JDK 1.4 mode!");
     }
   }
 
   private void checkForBadGenericsUsage() {
     if (jdkVersion < 5) {
-      throw new ParseException("Can't use generics unless running in JDK 1.5 mode!");
+      throwParseException("Can't use generics unless running in JDK 1.5 mode!");
     }
   }
 
   private void checkForBadVariableArgumentsUsage() {
     if (jdkVersion < 5) {
-      throw new ParseException("Can't use variable arguments (varargs) when running in JDK 1.4 mode!");
+      throwParseException("Can't use variable arguments (varargs) when running in JDK 1.4 mode!");
     }
   }
 
   private void checkForBadJDK15ForLoopSyntaxArgumentsUsage() {
     if (jdkVersion < 5) {
-      throw new ParseException("Can't use JDK 1.5 for loop syntax when running in JDK 1.4 mode!");
+      throwParseException("Can't use JDK 1.5 for loop syntax when running in JDK 1.4 mode!");
     }
   }
 
   private void checkForBadEnumUsage(String in, String usage) {
     if (jdkVersion >= 5 && in.equals("enum")) {
-      throw new ParseException("Can't use 'enum' as " + usage + " when running in JDK 1.5 mode!");
+      throwParseException("Can't use 'enum' as " + usage + " when running in JDK 1.5 mode!");
     }
   }
 
   private void checkForBadHexFloatingPointLiteral() {
     if (jdkVersion < 5) {
-      throw new ParseException("Can't use hexadecimal floating point literals in pre-JDK 1.5 target");
+      throwParseException("Can't use hexadecimal floating point literals in pre-JDK 1.5 target");
     }
   }
   
   private void checkForBadNumericalLiteralslUsage(Token token) {
     if (jdkVersion < 7) {
       if (token.image.contains("_")) {
-        throw new ParseException("Can't use underscores in numerical literals when running in JDK inferior to 1.7 mode!");
+        throwParseException("Can't use underscores in numerical literals when running in JDK inferior to 1.7 mode!");
       }
       	
       if (token.image.startsWith("0b") || token.image.startsWith("0B")) {
-        throw new ParseException("Can't use binary numerical literals when running in JDK inferior to 1.7 mode!");	
+        throwParseException("Can't use binary numerical literals when running in JDK inferior to 1.7 mode!");	
       }
     }
   }
   
   private void checkForBadDiamondUsage() {
   	if (jdkVersion < 7) {
-      throw new ParseException("Cannot use the diamond generic notation when running in JDK inferior to 1.7 mode!");
+      throwParseException("Cannot use the diamond generic notation when running in JDK inferior to 1.7 mode!");
   	}
   }
   
   private void checkForBadTryWithResourcesUsage() {
   	if (jdkVersion < 7) {
-      throw new ParseException("Cannot use the try-with-resources notation when running in JDK inferior to 1.7 mode!");
+      throwParseException("Cannot use the try-with-resources notation when running in JDK inferior to 1.7 mode!");
   	}
   }
 
   private void checkForBadMultipleExceptionsCatching() {
   	if (jdkVersion < 7) {
-      throw new ParseException("Cannot catch multiple exceptions when running in JDK inferior to 1.7 mode!");
+      throwParseException("Cannot catch multiple exceptions when running in JDK inferior to 1.7 mode!");
   	}
+  }
+
+  private void checkForBadLambdaUsage() {
+    if (jdkVersion < 8) {
+      throwParseException("Cannot use lambda expressions when running in JDK inferior to 1.8 mode!");
+    }
+  }
+  private void checkForBadMethodReferenceUsage() {
+    if (jdkVersion < 8) {
+      throwParseException("Cannot use method references when running in JDK inferior to 1.8 mode!");
+    }
+  }
+  private void checkForBadDefaultImplementationUsage() {
+    if (jdkVersion < 8) {
+      throwParseException("Cannot use default implementations in interfaces when running in JDK inferior to 1.8 mode!");
+    }
+  }
+  private void checkForBadIntersectionTypesInCasts() {
+    if (jdkVersion < 8) {
+      throwParseException("Cannot use intersection types in casts when running in JDK inferior to 1.8 mode!");
+    }
+  }
+  private void checkForBadTypeAnnotations() {
+    if (jdkVersion < 8) {
+      throwParseException("Cannot use type annotations when running in JDK inferior to 1.8 mode!");
+    }
   }
 
   // This is a semantic LOOKAHEAD to determine if we're dealing with an assert
@@ -1097,6 +1137,8 @@ TOKEN :
 | < RSIGNEDSHIFTASSIGN: ">>=" >
 | < RUNSIGNEDSHIFTASSIGN: ">>>=" >
 | < ELLIPSIS: "..." >
+| < LAMBDA: "->" >
+| < METHOD_REF: "::" >
 }
 
 /* >'s need special attention due to generics syntax. */
@@ -1178,6 +1220,7 @@ int Modifiers() #void:
   | "transient" { modifiers |= AccessNode.TRANSIENT; }
   | "volatile" { modifiers |= AccessNode.VOLATILE; }
   | "strictfp" { modifiers |= AccessNode.STRICTFP; }
+  | "default" { modifiers |= AccessNode.DEFAULT; checkForBadDefaultImplementationUsage(); }
   | Annotation()
   )
  )*
@@ -1226,15 +1269,15 @@ void ExtendsList():
    boolean extendsMoreThanOne = false;
 }
 {
-   "extends" ClassOrInterfaceType()
-   ( "," ClassOrInterfaceType() { extendsMoreThanOne = true; } )*
+   "extends" (Annotation() {checkForBadTypeAnnotations();})* ClassOrInterfaceType()
+   ( "," (Annotation() {checkForBadTypeAnnotations();})* ClassOrInterfaceType() { extendsMoreThanOne = true; } )*
 }
 
 void ImplementsList():
 {}
 {
-   "implements" ClassOrInterfaceType()
-   ( "," ClassOrInterfaceType() )*
+   "implements" (Annotation() {checkForBadTypeAnnotations();})* ClassOrInterfaceType()
+   ( "," (Annotation() {checkForBadTypeAnnotations();})* ClassOrInterfaceType() )*
 }
 
 void EnumDeclaration(int modifiers):
@@ -1283,6 +1326,7 @@ void TypeParameters():
 void TypeParameter():
 {Token t;}
 {
+   (Annotation() {checkForBadTypeAnnotations();})*
    t=<IDENTIFIER> {jjtThis.setImage(t.image);} [ TypeBound() ]
 }
 
@@ -1461,7 +1505,7 @@ void TypeArguments():
 void TypeArgument():
 {}
 {
-   ReferenceType()
+   (Annotation() {checkForBadTypeAnnotations();})* ReferenceType()
  |
    "?" [ WildcardBounds() ]
 }
@@ -1469,9 +1513,9 @@ void TypeArgument():
 void WildcardBounds():
 {}
 {
-   "extends" ReferenceType()
+   "extends" (Annotation() {checkForBadTypeAnnotations();})* ReferenceType()
  |
-   "super" ReferenceType()
+   "super" (Annotation() {checkForBadTypeAnnotations();})* ReferenceType()
 }
 
 void PrimitiveType() :
@@ -1519,8 +1563,8 @@ void Name() :
 void NameList() :
 {}
 {
-  Name()
-  ( "," Name()
+  (Annotation() {checkForBadTypeAnnotations();})* Name()
+  ( "," (Annotation() {checkForBadTypeAnnotations();})* Name()
   )*
 }
 
@@ -1543,7 +1587,7 @@ void Expression() :
 {
   ConditionalExpression()
   [
-    AssignmentOperator() Expression()
+    LOOKAHEAD(2) AssignmentOperator() Expression()
   ]
 }
 
@@ -1567,56 +1611,56 @@ void AssignmentOperator() :
 void ConditionalExpression() #ConditionalExpression(>1) :
 {}
 {
-  ConditionalOrExpression() [ "?" {jjtThis.setTernary();} Expression() ":" ConditionalExpression() ]
+  ConditionalOrExpression() [ LOOKAHEAD(2) "?" {jjtThis.setTernary();} Expression() ":" ConditionalExpression() ]
 }
 
 void ConditionalOrExpression() #ConditionalOrExpression(>1):
 {}
 {
-  ConditionalAndExpression() ( "||" ConditionalAndExpression() )*
+  ConditionalAndExpression() ( LOOKAHEAD(2) "||" ConditionalAndExpression() )*
 }
 
 void ConditionalAndExpression() #ConditionalAndExpression(>1):
 {}
 {
-  InclusiveOrExpression() ( "&&" InclusiveOrExpression() )*
+  InclusiveOrExpression() ( LOOKAHEAD(2) "&&" InclusiveOrExpression() )*
 }
 
 void InclusiveOrExpression() #InclusiveOrExpression(>1) :
 {}
 {
-  ExclusiveOrExpression() ( "|" ExclusiveOrExpression() )*
+  ExclusiveOrExpression() ( LOOKAHEAD(2) "|" ExclusiveOrExpression() )*
 }
 
 void ExclusiveOrExpression() #ExclusiveOrExpression(>1) :
 {}
 {
-  AndExpression()  ( "^" AndExpression() )*
+  AndExpression()  ( LOOKAHEAD(2) "^" AndExpression() )*
 }
 
 void AndExpression() #AndExpression(>1):
 {}
 {
-  EqualityExpression() ( "&" EqualityExpression() )*
+  EqualityExpression() ( LOOKAHEAD(2) "&" EqualityExpression() )*
 }
 
 void EqualityExpression() #EqualityExpression(>1):
 {}
 {
-  InstanceOfExpression()  ( ( "==" {jjtThis.setImage("==");} | "!=" {jjtThis.setImage("!=");} ) InstanceOfExpression()  )*
+  InstanceOfExpression()  ( LOOKAHEAD(2) ( "==" {jjtThis.setImage("==");} | "!=" {jjtThis.setImage("!=");} ) InstanceOfExpression()  )*
 }
 
 void InstanceOfExpression() #InstanceOfExpression(>1):
 {}
 {
-  RelationalExpression() [ "instanceof" Type() ]
+  RelationalExpression() [ LOOKAHEAD(2) "instanceof" Type() ]
 }
 
 void RelationalExpression() #RelationalExpression(>1):
 {}
 {
   ShiftExpression()
-   (
+   ( LOOKAHEAD(2)
     ( "<" {jjtThis.setImage("<");}
      | ">" {jjtThis.setImage(">");}
      | "<=" {jjtThis.setImage("<=");}
@@ -1628,7 +1672,7 @@ void ShiftExpression() #ShiftExpression(>1):
 {}
 {
   AdditiveExpression() 
-   (
+   ( LOOKAHEAD(2)
     ( "<<" { jjtThis.setImage("<<");}
      | RSIGNEDSHIFT()
      | RUNSIGNEDSHIFT()
@@ -1638,13 +1682,13 @@ void ShiftExpression() #ShiftExpression(>1):
 void AdditiveExpression() #AdditiveExpression(>1):
 {}
 {
-  MultiplicativeExpression() ( ( "+" {jjtThis.setImage("+");} | "-" {jjtThis.setImage("-");} ) MultiplicativeExpression() )*
+  MultiplicativeExpression() ( LOOKAHEAD(2) ( "+" {jjtThis.setImage("+");} | "-" {jjtThis.setImage("-");} ) MultiplicativeExpression() )*
 }
 
 void MultiplicativeExpression() #MultiplicativeExpression(>1):
 {}
 {
-  UnaryExpression() ( ( "*" {jjtThis.setImage("*");} | "/" {jjtThis.setImage("/");} | "%" {jjtThis.setImage("%");}) UnaryExpression() )*
+  UnaryExpression() ( LOOKAHEAD(2) ( "*" {jjtThis.setImage("*");} | "/" {jjtThis.setImage("/");} | "%" {jjtThis.setImage("%");}) UnaryExpression() )*
 }
 
 void UnaryExpression() #UnaryExpression((jjtn000.getImage() != null)):
@@ -1672,18 +1716,8 @@ void UnaryExpressionNotPlusMinus() #UnaryExpressionNotPlusMinus((jjtn000.getImag
 {}
 {
  ( "~" {jjtThis.setImage("~");} | "!" {jjtThis.setImage("!");} ) UnaryExpression()
-| LOOKAHEAD( CastLookahead() ) CastExpression()
+| LOOKAHEAD( CastExpression() ) CastExpression()
 | PostfixExpression()
-}
-
-// This production is to determine lookahead only.  The LOOKAHEAD specifications
-// below are not used, but they are there just to indicate that we know about
-// this.
-void CastLookahead() #void :
-{}
-{ LOOKAHEAD(3) "(" PrimitiveType() ")"
-| LOOKAHEAD("(" Type() "[")  "(" Type() "[" "]"
-| "(" Type() ")" ( "~" | "!" | "(" | <IDENTIFIER> | "this" | "super" | "new" | Literal() )
 }
 
 void PostfixExpression() #PostfixExpression((jjtn000.getImage() != null)):
@@ -1694,8 +1728,10 @@ void PostfixExpression() #PostfixExpression((jjtn000.getImage() != null)):
 
 void CastExpression() #CastExpression(>1):
 {}
-{ LOOKAHEAD("(" PrimitiveType()) "(" Type() ")" UnaryExpression()
-| "(" Type() ")" UnaryExpressionNotPlusMinus()
+{
+  LOOKAHEAD("(" (Annotation())* Type() ")") "(" (Annotation() {checkForBadTypeAnnotations();})* Type() ")" UnaryExpression()
+| LOOKAHEAD("(" (Annotation())* Type() "&") "(" (Annotation() {checkForBadTypeAnnotations();})* Type() ( "&" {checkForBadIntersectionTypesInCasts(); jjtThis.setIntersectionTypes(true);} ReferenceType() )+ ")" UnaryExpressionNotPlusMinus()
+| "(" (Annotation() {checkForBadTypeAnnotations();})* Type() ")" UnaryExpressionNotPlusMinus()
 }
 
 void PrimaryExpression() :
@@ -1710,6 +1746,13 @@ Token t;
 }
 {
   "." TypeArguments() t=<IDENTIFIER> {jjtThis.setImage(t.image);}
+| MethodReference()
+}
+
+void MethodReference() :
+{Token t; checkForBadMethodReferenceUsage();}
+{
+  "::" ("new" {jjtThis.setImage("new");} | t=<IDENTIFIER> {jjtThis.setImage(t.image);} )
 }
 
 void PrimaryPrefix() :
@@ -1718,10 +1761,21 @@ void PrimaryPrefix() :
   Literal()
 | "this" {jjtThis.setUsesThisModifier();}
 | "super" {jjtThis.setUsesSuperModifier();}
-| "(" Expression() ")"
+| LOOKAHEAD( LambdaExpression() ) LambdaExpression()
+| LOOKAHEAD( <IDENTIFIER> "->" ) LambdaExpression()
+| LOOKAHEAD(3) "(" Expression() ")"
 | AllocationExpression()
 | LOOKAHEAD( ResultType() "." "class" ) ResultType() "." "class"
+| LOOKAHEAD( ReferenceType() MethodReference() ) ReferenceType() MethodReference()
 | Name()
+}
+
+void LambdaExpression() :
+{ checkForBadLambdaUsage(); }
+{
+  VariableDeclaratorId() "->" ( Expression() | Block() )
+| LOOKAHEAD(3) FormalParameters() "->" ( Expression() | Block() )
+| LOOKAHEAD(3) "(" VariableDeclaratorId() ( "," VariableDeclaratorId() )* ")" "->" ( Expression() | Block() )
 }
 
 void PrimarySuffix() :
@@ -1773,15 +1827,17 @@ void ArgumentList() :
 void AllocationExpression():
 {}
 {
-  LOOKAHEAD(2)
-  "new" PrimitiveType() ArrayDimsAndInits()
-|
-  "new" ClassOrInterfaceType() [ TypeArguments() ]
-    (
+  "new" (Annotation() {checkForBadTypeAnnotations();})*
+  (LOOKAHEAD(2)
+    PrimitiveType() ArrayDimsAndInits()
+  |
+    ClassOrInterfaceType() [ TypeArguments() ]
+     (
       ArrayDimsAndInits()
-    |
+     |
       Arguments() [ ClassOrInterfaceBody() ]
-    )
+     )
+  )
 }
 
 /*

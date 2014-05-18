@@ -17,6 +17,9 @@
   </description>
   <priority>3</priority>
   <properties>
+    <property name="version">
+    <value>1.0 compatibility</value>
+    </property>
     <property name="xpath">
     <value>
 <![CDATA[

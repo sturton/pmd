@@ -68,6 +68,12 @@ public class ParserCornerCases extends Superclass {
 	Class getByteArrayClass() {
 		return (byte[].class);
 	}
+
+    public void bitwiseOperator() {
+        if ((modifiers & InputEvent.SHIFT_DOWN_MASK) != 0 ) {
+            buf.append("shift ");
+        }
+    }
 }
 
 /**
@@ -155,5 +161,37 @@ class Foo extends MyFoo {
                 return fish;
             }
         });
+    }
+}
+
+/*
+ * Verifies #1122 parse error at class.super
+ */
+class SuperTest {
+    /**
+     * @throws UnsupportedOperationException
+     */
+    public Iterator<E> iterator() {
+        if (this.mods.contains(Modification.Iterator)) {
+            return new Iterator<E>() {
+                Iterator<E> wrapped = ImmutableSet.super.iterator();
+
+                public boolean hasNext() {
+                    return this.wrapped.hasNext();
+                }
+
+                public E next() {
+                    return this.wrapped.next();
+                }
+
+                public void remove() {
+                    if (ImmutableSet.this.mods.contains(Modification.RemoveIter)) {
+                        this.wrapped.remove();
+                    }
+                    throw new UnsupportedOperationException();
+                }
+            };
+        }
+        throw new UnsupportedOperationException();
     }
 }

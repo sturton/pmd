@@ -4,6 +4,7 @@
 package net.sourceforge.pmd.lang.java.symboltable;
 
 import net.sourceforge.pmd.lang.java.ast.ASTFormalParameter;
+import net.sourceforge.pmd.lang.java.ast.ASTLambdaExpression;
 import net.sourceforge.pmd.lang.java.ast.ASTPrimitiveType;
 import net.sourceforge.pmd.lang.java.ast.ASTReferenceType;
 import net.sourceforge.pmd.lang.java.ast.ASTType;
@@ -26,35 +27,47 @@ public class VariableNameDeclaration extends AbstractNameDeclaration implements 
     }
 
     public boolean isArray() {
-	ASTVariableDeclaratorId astVariableDeclaratorId = (ASTVariableDeclaratorId) node;
-	ASTType typeNode = astVariableDeclaratorId.getTypeNode();
-	return ((Dimensionable) typeNode.jjtGetParent()).isArray();
+        ASTVariableDeclaratorId astVariableDeclaratorId = (ASTVariableDeclaratorId) node;
+        ASTType typeNode = astVariableDeclaratorId.getTypeNode();
+        if (typeNode != null) {
+            return ((Dimensionable) typeNode.jjtGetParent()).isArray();
+        } else {
+            return false;
+        }
     }
 
     public boolean isExceptionBlockParameter() {
 	return ((ASTVariableDeclaratorId) node).isExceptionBlockParameter();
     }
 
+    public boolean isLambdaTypelessParameter() {
+        return getAccessNodeParent() instanceof ASTLambdaExpression;
+    }
+
     public boolean isPrimitiveType() {
-	return getAccessNodeParent().jjtGetChild(0).jjtGetChild(0) instanceof ASTPrimitiveType;
+	return !isLambdaTypelessParameter() && getAccessNodeParent().jjtGetChild(0).jjtGetChild(0) instanceof ASTPrimitiveType;
     }
 
     public String getTypeImage() {
 	if (isPrimitiveType()) {
 	    return getAccessNodeParent().jjtGetChild(0).jjtGetChild(0).getImage();
 	}
-	return getAccessNodeParent().jjtGetChild(0).jjtGetChild(0).jjtGetChild(0).getImage();
+	if (!isLambdaTypelessParameter()) {
+	    return getAccessNodeParent().jjtGetChild(0).jjtGetChild(0).jjtGetChild(0).getImage();
+	} else
+	    return null;
     }
 
     /**
      * Note that an array of primitive types (int[]) is a reference type.
      */
     public boolean isReferenceType() {
-	return getAccessNodeParent().jjtGetChild(0).jjtGetChild(0) instanceof ASTReferenceType;
+	return !isLambdaTypelessParameter() && getAccessNodeParent().jjtGetChild(0).jjtGetChild(0) instanceof ASTReferenceType;
     }
 
     public AccessNode getAccessNodeParent() {
-	if (node.jjtGetParent() instanceof ASTFormalParameter) {
+	if (node.jjtGetParent() instanceof ASTFormalParameter
+        || node.jjtGetParent() instanceof ASTLambdaExpression) {
 	    return (AccessNode)node.jjtGetParent();
 	}
 	return (AccessNode)node.jjtGetParent().jjtGetParent();

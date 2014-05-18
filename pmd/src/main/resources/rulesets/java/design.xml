@@ -533,14 +533,18 @@ Tests for null should not use the equals() method. The '==' operator should be u
                 <value>
     <![CDATA[
 //PrimaryExpression
- [
-PrimaryPrefix/Name[ends-with(@Image, 'equals')]
-or
-PrimarySuffix[ends-with(@Image, 'equals')]
-]
-[PrimarySuffix/Arguments/ArgumentList[count(Expression)=1]
-  /Expression/PrimaryExpression/PrimaryPrefix
-   /Literal/NullLiteral]
+  [
+    PrimaryPrefix[Name[ends-with(@Image, 'equals')]]
+      [following-sibling::node()/Arguments/ArgumentList[count(Expression)=1]
+          /Expression/PrimaryExpression/PrimaryPrefix/Literal/NullLiteral]
+
+    or
+
+    PrimarySuffix[ends-with(@Image, 'equals')]
+      [following-sibling::node()/Arguments/ArgumentList[count(Expression)=1]
+          /Expression/PrimaryExpression/PrimaryPrefix/Literal/NullLiteral]
+
+  ]
     ]]>
                 </value>
             </property>
@@ -815,13 +819,29 @@ A class that has private constructors and does not have any static methods or fi
           <property name="xpath">
               <value>
     <![CDATA[
-//ClassOrInterfaceDeclaration[@Nested='false'][
-( count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/ConstructorDeclaration)>0
-  and count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/ConstructorDeclaration) = count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/ConstructorDeclaration[@Private='true']) )
-and
-count(.//MethodDeclaration[@Static='true'])=0
-and
-count(.//FieldDeclaration[@Private='false'][@Static='true'])=0
+//ClassOrInterfaceDeclaration[@Nested='false']
+[
+  (
+    count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/ConstructorDeclaration)>0
+    and
+    count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/ConstructorDeclaration) = count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/ConstructorDeclaration[@Private='true'])
+  )
+  and
+  count(.//MethodDeclaration[@Static='true'])=0
+  and
+  count(.//FieldDeclaration[@Private='false'][@Static='true'])=0
+  and
+  count(.//ClassOrInterfaceDeclaration[@Nested='true']
+           [@Public='true']
+           [@Static='true']
+           [count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/ConstructorDeclaration[@Public='true']) > 0]
+           [count(./ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/MethodDeclaration
+                    [@Public='true']
+                    [./ResultType/Type/ReferenceType/ClassOrInterfaceType
+                        [@Image = //ClassOrInterfaceDeclaration[@Nested='false']/@Image]
+                    ]
+            ) > 0]
+        ) = 0
 ]
     ]]>
               </value>
@@ -1517,16 +1537,10 @@ usage by developers who should be implementing their own versions in the concret
                             ( boolean(./Block[count(./BlockStatement) =  1]/BlockStatement/Statement/ReturnStatement/Expression/PrimaryExpression/PrimaryPrefix/Literal/NullLiteral) = 'true' )
                             or
                             ( boolean(./Block[count(./BlockStatement) =  1]/BlockStatement/Statement/ReturnStatement/Expression/PrimaryExpression/PrimaryPrefix/Literal[@Image = '0']) = 'true' )
-                    		or
-							( boolean(./Block[count(./BlockStatement) =  1]/BlockStatement/Statement/ReturnStatement/Expression/PrimaryExpression/PrimaryPrefix/Literal[string-length(@Image) = 2]) = 'true' )
-							or
-							(
-								(
-									(boolean(./Block/BlockStatement/Statement/ReturnStatement/Expression/PrimaryExpression/PrimaryPrefix/Literal[@Image = '']) = 'true' )
-								)
-								and
-								( count (./Block/*) = 1 )
-							)
+                            or
+                            ( boolean(./Block[count(./BlockStatement) =  1]/BlockStatement/Statement/ReturnStatement/Expression/PrimaryExpression/PrimaryPrefix/Literal[string-length(@Image) = 2]) = 'true' )
+                            or
+                            (./Block[count(./BlockStatement) =  1]/BlockStatement/Statement/EmptyStatement)
                             or
                             ( count (./Block/*) = 0 )
                         ]
@@ -1537,12 +1551,12 @@ usage by developers who should be implementing their own versions in the concret
         <example>
         	<![CDATA[
 public abstract class ShouldBeAbstract {
-    public Object couldBeAbstract()  {
-					// Should be abstract method ?
-			return null;
-	}
+    public Object couldBeAbstract() {
+        // Should be abstract method ?
+        return null;
+    }
 
-	public void couldBeAbstract()  {
+    public void couldBeAbstract() {
     }
 }
 	     	]]>
@@ -1777,10 +1791,13 @@ Fields should be declared at the top of the class, before any method declaration
         <value>
           <![CDATA[
 //ClassOrInterfaceBody/ClassOrInterfaceBodyDeclaration/FieldDeclaration
- [count(../preceding-sibling::ClassOrInterfaceBodyDeclaration/child::*[1][name() != 'FieldDeclaration' and name() != 'Annotation']) > 0]
+ [count(../preceding-sibling::ClassOrInterfaceBodyDeclaration/child::*[1]
+   [name() != 'FieldDeclaration' and name() != 'Annotation' and
+       (name() != 'EnumDeclaration' or $ignoreEnumDeclarations = 'false')]) > 0]
           ]]>
         </value>
       </property>
+      <property name="ignoreEnumDeclarations" description="Ignore Enum Declarations that precede fields." type="Boolean" value="true"/>
     </properties>
     <example>
       <![CDATA[
