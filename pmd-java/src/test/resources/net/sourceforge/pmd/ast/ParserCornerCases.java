@@ -195,3 +195,30 @@ class SuperTest {
         throw new UnsupportedOperationException();
     }
 }
+
+/*
+ * Test case for #1310 PMD cannot parse int.class
+ */
+class ClazzPropertyOfPrimitiveTypes {
+    public void test() {
+        Class<?> c = int.class;
+        c = short.class;
+        c = long.class;
+        c = float.class;
+        c = double.class;
+        c = char.class;
+        c = byte.class;
+        c = void.class;
+
+        if (c == int.class || c == short.class || c == long.class || c == double.class || c == char.class || c == byte.class || c == void.class) {
+            
+        }
+
+        if ("a".equals((int.class).getName())) {
+            
+        }
+
+        if ((Integer.class.equals(clazz)) || (int.class.equals(clazz))) {
+        }
+    }
+}

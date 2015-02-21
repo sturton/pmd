@@ -12,6 +12,7 @@
 **Feature Requests and Improvements:**
 
 * XML: Line numbers for XML documents are more accurate. This is a further improvement of [#1054](https://sourceforge.net/p/pmd/bugs/1054/).
+* CPD: New output format 'csv_with_linecount_per_file'
 
 **New/Modified Rules:**
 
@@ -24,6 +25,11 @@
 * [#15](https://github.com/adangel/pmd/pull/15): (pmd-cs) Fixed incorrect line numbers after mutiline comments and verbatim strings.
 * [#16](https://github.com/adangel/pmd/pull/16): Fixed several C++ lexical / tokenize errors.
 * [#17](https://github.com/adangel/pmd/pull/17): Fixed '--files' command line option of CPD, so it also works for files and not only for directories.
+* [#18](https://github.com/adangel/pmd/pull/18): Created extra CSV output format `csv_with_linecount_per_file` which outputs the correct line count per file.
+* [#48](https://github.com/pmd/pmd/pull/48): Handle NoClassDefFoundError along ClassNotFoundException
+* [#49](https://github.com/pmd/pmd/pull/49): Fix some false positives in UnusedPrivateField
+* [#50](https://github.com/pmd/pmd/pull/50): Add missing assertions in JUnitAssertionsShouldIncludeMessage test
+* [#51](https://github.com/pmd/pmd/pull/51): [JUnit] Check assertion message present in assertEquals with delta
 
 **Bugfixes:**
 
@@ -32,3 +38,14 @@
 * [#1298](https://sourceforge.net/p/pmd/bugs/1298/): Member variable int type with value 0xff000000 causes processing error
 * [#1299](https://sourceforge.net/p/pmd/bugs/1299/): MethodReturnsInternalArray false positive
 * [#1306](https://sourceforge.net/p/pmd/bugs/1306/): False positive on duplicate when using static imports
+* [#1308](https://sourceforge.net/p/pmd/bugs/1308/): PMD runs endlessly on some generated files
+* [#1312](https://sourceforge.net/p/pmd/bugs/1312/): Rule reference must not override rule name of referenced rule
+* [#1313](https://sourceforge.net/p/pmd/bugs/1313/): Missing assertion message in assertEquals with delta not detected
+
+**API Changes:**
+
+* `net.sourceforge.pmd.cpd.Match.iterator()` now returns an iterator of the new type `net.sourceforge.pmd.cpd.Mark` instead
+  of TokenEntry. A `Mark` contains all the informations about each single duplication, including the TokenEntry via `Mark.getToken()`.
+  This Mark is useful for reporting the correct line count for each duplication. Previously only one line count was available.
+  As for some languages CPD can be instructed to ignore comments, the line count could be different in the different files
+  for the same duplication.
