@@ -468,6 +468,7 @@ ASTProgramUnit ProgramUnit()  :
 			   (( <ORDER> | <CLUSTER> ) [ID()] <BY> "(" ID() ( "," ID() )*  ")" ) 
 			 ] //  drvparx.IndexMapDocuments
 	   | <RESULT_CACHE> [ <RELIES_ON> "(" ID() ["." ID()] ( "," ID() ["." ID()])*  ")" ]
+           | CompilationExpression() // Allow Conditional PRAGMA
 	) *
 	
 	[ <AGGREGATE> <USING> ID() ] 
@@ -1376,9 +1377,9 @@ ASTEmbeddedSqlStatement EmbeddedSqlStatement()  :
    <EXECUTE> <IMMEDIATE> Expression() // StringLiteral() /* <STRING_LITERAL> */ 
 	//SRT 20110429 | <EXECUTE> <IMMEDIATE> StringExpression()  [<USING> Expression() ("," Expression())*] ";"
 	//SRT 20121126 | <EXECUTE> <IMMEDIATE> StringExpression()  
-	[ <INTO> Name() ("," Name())* ] 
+	[ [ <BULK> <COLLECT> ] <INTO> Name() ("," Name())* ] 
 	[ <USING> [ <IN> [ <OUT> ] | <OUT> ]  Expression() ("," [ <IN> [ <OUT> ] | <OUT> ] Expression())* ] 
-	[ ( <RETURN> | <RETURNING> )  <INTO> Expression() ("," Expression())*] ";"
+	[ ( <RETURN> | <RETURNING> )  [ <BULK> <COLLECT> ] <INTO> Expression() ("," Expression())*] ";"
 	// PIPELINED FUNCTION OUTPUT
       { return jjtThis ; }
 }
@@ -1624,7 +1625,7 @@ ASTExpression Expression() :
 	(
   	LOOKAHEAD( PrimaryExpression() ":" "=" ) (simpleNode = Assignment()) {sb.append(simpleNode.getImage());  }  
 	| (simpleNode = ConditionalOrExpression() )  {sb.append(simpleNode.getImage()); }  
-	| (simpleNode = CompilationExpression() )  {sb.append(simpleNode.getImage()); }  
+	//| (simpleNode = CompilationExpression() )  {sb.append(simpleNode.getImage()); }  
 	)
  { 
  jjtThis.setImage(sb.toString()); return jjtThis; 
@@ -1998,6 +1999,7 @@ ASTPrimaryPrefix PrimaryPrefix() :
 (
   ( simpleNode = Literal() ) { sb.append(simpleNode.getImage()) ; } 
 | LOOKAHEAD(MultiSetCondition()) simpleNode = MultiSetCondition()
+| LOOKAHEAD(CompilationExpression()) simpleNode = CompilationExpression()
 | LOOKAHEAD(TrimExpression()) simpleNode = TrimExpression() //SRT 20110613.3
 | LOOKAHEAD(CaseExpression()) ( simpleNode =CaseExpression() ) { sb.append(simpleNode.getImage()) ; } //SRT 20110520
 | LOOKAHEAD(ObjectExpression() ) ( simpleNode = ObjectExpression() ) { sb.append(simpleNode.getImage()) ; } //SRT 20110604
@@ -2555,6 +2557,8 @@ ASTTypeMethod TypeMethod()  :
 	[<PARALLEL_ENABLE>]
 	[<PIPELINED>]
 	[<RESULT_CACHE>]
+	[CompilationExpression()]
+
 
 	// Java or C function wrapped with PL/SQL wrapper declaration 
 	[
@@ -4597,6 +4601,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <RESTRICTED>
 //| <RESUMABLE>
 | <RESULT>
+| <RESULT_CACHE>
 //| <RESUME>
 //| <RETENTION>
 | <RETURN>
