@@ -3,15 +3,24 @@
  */
 package net.sourceforge.pmd.cpd;
 
+import java.io.Reader;
 import java.io.StringReader;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import net.sourceforge.pmd.lang.ast.SimpleCharStream;
+import net.sourceforge.pmd.lang.LanguageRegistry;
+import net.sourceforge.pmd.lang.LanguageVersionHandler;
+import net.sourceforge.pmd.lang.TokenManager;
+import net.sourceforge.pmd.lang.ast.TokenMgrError;
+import net.sourceforge.pmd.lang.plsql.PLSQLLanguageModule;
 import net.sourceforge.pmd.lang.plsql.ast.PLSQLParserConstants;
-import net.sourceforge.pmd.lang.plsql.ast.PLSQLParserTokenManager;
 import net.sourceforge.pmd.lang.plsql.ast.Token;
+import net.sourceforge.pmd.util.IOUtil;
+
+import org.apache.commons.io.IOUtils;
+
+
 
 public class PLSQLTokenizer implements Tokenizer{
     private final static Logger LOGGER = Logger.getLogger(PLSQLTokenizer.class.getName());
@@ -57,19 +66,31 @@ public class PLSQLTokenizer implements Tokenizer{
         long encounteredTokens = 0;
         long addedTokens = 0;
 
-        if (LOGGER.isLoggable(Level.FINE)) {
-    		LOGGER.fine("PLSQLTokenizer: ignoreComments=="+ignoreComments);
-    		LOGGER.fine("PLSQLTokenizer: ignoreIdentifiers=="+ignoreIdentifiers);
-    		LOGGER.fine("PLSQLTokenizer: ignoreLiterals=="+ignoreLiterals);
-        }
+		if (LOGGER.isLoggable(Level.FINE)) {
+			LOGGER.log(Level.FINE, "PLSQLTokenizer: ignoreComments=={0}", ignoreComments);
+			LOGGER.log(Level.FINE, "PLSQLTokenizer: ignoreIdentifiers=={0}", ignoreIdentifiers);
+			LOGGER.log(Level.FINE, "PLSQLTokenizer: ignoreLiterals=={0}", ignoreLiterals);
+		}
 
 		String fileName = sourceCode.getFileName();
-		StringBuilder sb = sourceCode.getCodeBuffer();
+	        StringBuilder buffer = sourceCode.getCodeBuffer();
 
-		PLSQLParserTokenManager tokenMgr = new PLSQLParserTokenManager( new SimpleCharStream( new StringReader(sb.toString()))); 
-		Token currentToken = tokenMgr.getNextToken();
-		while (currentToken.image.length()  > 0)
-		{
+		if (LOGGER.isLoggable(Level.FINER)) {
+			LOGGER.log(Level.FINE, "PLSQLTokenizer: fileName={0}", fileName);
+			LOGGER.log(Level.FINE, "PLSQLTokenizer: sourceCode.length= {0}", buffer.length());
+		}
+
+		Reader reader = null;
+		try {
+		    LanguageVersionHandler languageVersionHandler = LanguageRegistry.getLanguage(PLSQLLanguageModule.NAME)
+			    .getDefaultVersion().getLanguageVersionHandler();
+		    reader = new StringReader(buffer.toString());
+		    reader = IOUtil.skipBOM(reader);
+		    TokenManager tokenManager = languageVersionHandler.getParser(
+			    languageVersionHandler.getDefaultParserOptions()).getTokenManager(sourceCode.getFileName(), reader);
+		    Token currentToken = (Token) tokenManager.getNextToken();
+		    while (currentToken.image.length() > 0) {
+
 			String image = currentToken.image;
 
                         encounteredTokens++;
@@ -106,14 +127,22 @@ public class PLSQLTokenizer implements Tokenizer{
 
 			tokenEntries.add(new TokenEntry(image, fileName, currentToken.beginLine));
                         addedTokens++;
-			currentToken = tokenMgr.getNextToken();
+			currentToken = (Token) tokenManager.getNextToken();
+
+		    }
+		    tokenEntries.add(TokenEntry.getEOF());
+		    System.err.println("Added " + sourceCode);
+		} catch (TokenMgrError err) {
+		    err.printStackTrace();
+		    System.err.println("Skipping " + sourceCode + " due to parse error");
+		    tokenEntries.add(TokenEntry.getEOF());
+		} finally {
+		    IOUtils.closeQuietly(reader);
 		}
-		tokenEntries.add(TokenEntry.getEOF() );
+
 		if (LOGGER.isLoggable(Level.FINE)) {
-            LOGGER.fine(sourceCode.getFileName() 
-                        + ": encountered " + encounteredTokens + " tokens;"
-                        + " added " + addedTokens + " tokens"
-                       );
+		    LOGGER.log(Level.FINE,"{0}: encountered {1}" + " tokens;" + " added {2} tokens"
+                       , new Object[]{sourceCode.getFileName(), encounteredTokens, addedTokens});
 		}
 	}
 
