@@ -99,6 +99,9 @@ public class TypeSet {
         }
         @Override
         public Class<?> resolve(String name) throws ClassNotFoundException {
+            if (name == null) {
+                throw new ClassNotFoundException();
+            }
             for (String importStmt : importStmts) {
                 if (importStmt.endsWith(name)) {
                     return pmdClassLoader.loadClass(importStmt);
@@ -168,7 +171,7 @@ public class TypeSet {
                         String importPkg = importStmt.substring(0, importStmt.indexOf('*') - 1);
                         return pmdClassLoader.loadClass(importPkg + '.' + name);
                     } catch (ClassNotFoundException cnfe) {
-                    } catch (NoClassDefFoundError ignored) {
+                        // ignored as the class could be imported with the next on demand import...
                     }
                 }
             }
@@ -198,7 +201,7 @@ public class TypeSet {
         @Override
         public Class<?> resolve(String name) throws ClassNotFoundException {
             if (!primitiveTypes.containsKey(name)) {
-                throw new ClassNotFoundException();
+                throw new ClassNotFoundException(name);
             }
             return primitiveTypes.get(name);
         }
@@ -210,10 +213,10 @@ public class TypeSet {
     public static class VoidResolver implements Resolver {
         @Override
         public Class<?> resolve(String name) throws ClassNotFoundException {
-            if (name.equals("void")) {
+            if ("void".equals(name)) {
                 return void.class;
             }
-            throw new ClassNotFoundException();
+            throw new ClassNotFoundException(name);
         }
     }
 
@@ -231,6 +234,9 @@ public class TypeSet {
         }
         @Override
         public Class<?> resolve(String name) throws ClassNotFoundException {
+            if (name == null) {
+                throw new ClassNotFoundException();
+            }
             return pmdClassLoader.loadClass(name);
         }
     }
@@ -280,7 +286,7 @@ public class TypeSet {
             try {
                 return resolver.resolve(name);
             } catch (ClassNotFoundException cnfe) {
-            } catch (NoClassDefFoundError ignored) {
+                // ignored, maybe another resolver will find the class
             }
         }
 

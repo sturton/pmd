@@ -3,6 +3,163 @@
 Previous versions of PMD can be downloaded here:
 http://sourceforge.net/projects/pmd/files/pmd/
 
+
+## 25-July-2015 - 5.3.3
+
+**Pull Requests:**
+
+*   [#55](https://github.com/pmd/pmd/pull/55): Fix run.sh for paths with spaces
+
+**Bugfixes:**
+
+*   [#1364](https://sourceforge.net/p/pmd/bugs/1364/): FieldDeclarationsShouldBeAtStartOfClass false positive using multiple annotations
+*   [#1365](https://sourceforge.net/p/pmd/bugs/1365/): Aggregated javadoc report is missing
+*   [#1366](https://sourceforge.net/p/pmd/bugs/1366/): UselessParentheses false positive on multiple equality operators
+*   [#1369](https://sourceforge.net/p/pmd/bugs/1369/): ConsecutiveLiteralAppends not detected properly on StringBuffer
+*   [#1372](https://sourceforge.net/p/pmd/bugs/1372/): False Negative for CloseResource rule.
+*   [#1375](https://sourceforge.net/p/pmd/bugs/1375/): CloseResource not detected properly
+*   [#1376](https://sourceforge.net/p/pmd/bugs/1376/): CompareObjectsWithEquals fails for type annotated method parameter
+*   [#1379](https://sourceforge.net/p/pmd/bugs/1379/): PMD CLI: Cannot specify multiple properties
+*   [#1381](https://sourceforge.net/p/pmd/bugs/1381/): CPD Cannot use CSV/VS Renderers because they don't support encoding property
+
+
+## 22-May-2015 - 5.3.2
+
+**Bugfixes:**
+
+*   [#1330](https://sourceforge.net/p/pmd/bugs/1330/): AvoidReassigningParameters does not work with varargs
+*   [#1335](https://sourceforge.net/p/pmd/bugs/1335/): GuardLogStatementJavaUtil should not apply to SLF4J Logger
+*   [#1342](https://sourceforge.net/p/pmd/bugs/1342/): UseConcurrentHashMap false positive (with documentation example)
+*   [#1343](https://sourceforge.net/p/pmd/bugs/1343/): MethodNamingConventions for overrided methods
+*   [#1345](https://sourceforge.net/p/pmd/bugs/1345/): UseCollectionIsEmpty throws NullPointerException
+*   [#1353](https://sourceforge.net/p/pmd/bugs/1353/): False positive "Only One Return" with lambda
+*   [#1354](https://sourceforge.net/p/pmd/bugs/1354/): Complex FieldDeclarationsShouldBeAtStartOfClass false positive with Spring annotations
+*   [#1355](https://sourceforge.net/p/pmd/bugs/1355/): NullPointerException in a java file having a single comment line
+
+
+## 20-April-2015 - 5.3.1
+
+**New/Modified/Deprecated Rules:**
+
+*   Language Java, ruleset design.xml: The rule "UseSingleton" *has been renamed* to "UseUtilityClass".
+    See also bugs [#1059](https://sourceforge.net/p/pmd/bugs/1059) and [#1339](https://sourceforge.net/p/pmd/bugs/1339/).
+
+**Pull Requests:**
+
+*   [#53](https://github.com/pmd/pmd/pull/53): Fix some NullPointerExceptions
+
+**Bugfixes:**
+
+*   [#1332](https://sourceforge.net/p/pmd/bugs/1332/): False Positive: UnusedPrivateMethod
+*   [#1333](https://sourceforge.net/p/pmd/bugs/1333/): Error while processing Java file with Lambda expressions
+*   [#1337](https://sourceforge.net/p/pmd/bugs/1337/): False positive "Avoid throwing raw exception types" when exception is not thrown
+*   [#1338](https://sourceforge.net/p/pmd/bugs/1338/): The pmd-java8 POM bears the wrong parent module version
+
+
+## April 1, 2015 - 5.3.0
+
+**New Supported Languages:**
+
+* Matlab (CPD)
+* Objective-C (CPD)
+* Python (CPD)
+* Scala (CPD)
+
+**Feature Requests and Improvements:**
+
+*   XML: Line numbers for XML documents are more accurate. This is a further improvement of [#1054](https://sourceforge.net/p/pmd/bugs/1054/).
+*   CPD: New output format 'csv_with_linecount_per_file'
+*   [#1320](https://sourceforge.net/p/pmd/bugs/1320/): Enhance SimplifyBooleanReturns checks
+*   PMD exits with status `4` if any violations have been found. This behavior has been introduced to ease PMD
+    integration into scripts or hooks, such as SVN hooks.
+
+**New/Modified/Deprecated Rules:**
+
+The following rules have been
+<span style="border-radius: 0.25em; color: #fff; padding: 0.2em 0.6em 0.3em; display: inline; background-color: #5CB85C; font-size: 75%;">enhanced</span>
+:
+
+*   Language Java, ruleset design.xml: The rule "SimplifyBooleanReturns" now also marks methods where the else case is omitted and just a return.
+    See also feature [#1320](https://sourceforge.net/p/pmd/bugs/1320/).
+
+The following rules are marked as
+<span style="border-radius: 0.25em; color: #fff; padding: 0.2em 0.6em 0.3em; display: inline; background-color: #d9534f; font-size: 75%;">deprecated</span>
+and will be removed with the next release of PMD.
+
+*   Language Java, ruleset basic.xml: The following rules have been *moved into the `empty.xml` ruleset*. You'll need
+    to enable the "empty" ruleset explicitly from now on, if you want to have these rules executed:
+
+    EmptyCatchBlock, EmptyIfStatement, EmptyWhileStmt, EmptyTryBlock, EmptyFinallyBlock, EmptySwitchStatements,
+    EmptySynchronizedBlock, EmptyStatementNotInLoop, EmptyInitializer, EmptyStatementBlock, EmptyStaticInitializer.
+
+*   Language Java, ruleset basic.xml: The following rules have been *moved into the `unnecessary.xml` ruleset*. You'll need
+    to enable the "unnecessary" ruleset explicitly from now on, if you want to have these rules executed:
+
+    UnnecessaryConversionTemporary, UnnecessaryReturn, UnnecessaryFinalModifier, UselessOverridingMethod,
+    UselessOperationOnImmutable, UnusedNullCheckInEquals, UselessParentheses.
+
+*   Language Java, ruleset design.xml: The rule "UncommentedEmptyMethod" *has been renamed* to "UncommentedEmptyMethodBody".
+    See also bug [#1283](https://sourceforge.net/p/pmd/bugs/1283/).
+
+*   Language Java, ruleset controversial.xml: The rule "BooleanInversion" is deprecated and *will be removed* with
+    the next release. See [#1277](https://sourceforge.net/p/pmd/bugs/1277/) for more details.
+
+**Pull Requests:**
+
+* [#11](https://github.com/adangel/pmd/pull/11): Added support for Python to CPD.
+* [#12](https://github.com/adangel/pmd/pull/12): Added support for Matlab to CPD.
+* [#13](https://github.com/adangel/pmd/pull/13): Added support for Objective-C to CPD.
+* [#14](https://github.com/adangel/pmd/pull/14): Added support for Scala to CPD.
+* [#15](https://github.com/adangel/pmd/pull/15): (pmd-cs) Fixed incorrect line numbers after mutiline comments and verbatim strings.
+* [#16](https://github.com/adangel/pmd/pull/16): Fixed several C++ lexical / tokenize errors.
+* [#17](https://github.com/adangel/pmd/pull/17): Fixed '--files' command line option of CPD, so it also works for files and not only for directories.
+* [#18](https://github.com/adangel/pmd/pull/18): Created extra CSV output format `csv_with_linecount_per_file` which outputs the correct line count per file.
+* [#19](https://github.com/adangel/pmd/pull/19): Fixed exit status of PMD when error occurs
+* [#48](https://github.com/pmd/pmd/pull/48): Handle NoClassDefFoundError along ClassNotFoundException
+* [#49](https://github.com/pmd/pmd/pull/49): Fix some false positives in UnusedPrivateField
+* [#50](https://github.com/pmd/pmd/pull/50): Add missing assertions in JUnitAssertionsShouldIncludeMessage test
+* [#51](https://github.com/pmd/pmd/pull/51): [JUnit] Check assertion message present in assertEquals with delta
+* [#52](https://github.com/pmd/pmd/pull/52): Improves JDK8 support for default methods and static methods in interfaces
+
+**Bugfixes:**
+
+* [#914](https://sourceforge.net/p/pmd/bugs/914/): False +ve from UnusedImports with wildcard static imports
+* [#1197](https://sourceforge.net/p/pmd/bugs/1197/): JUnit4TestShouldUseTestAnnotation for private method
+* [#1277](https://sourceforge.net/p/pmd/bugs/1277/): Delete BooleanInversion as it makes no sense
+* [#1283](https://sourceforge.net/p/pmd/bugs/1283/): Rename UncommentedEmptyMethod to UncommentedEmptyMethodBody
+* [#1296](https://sourceforge.net/p/pmd/bugs/1296/): PMD UnusedPrivateMethod invalid detection of 'private void method(int,boolean,Integer...)'
+* [#1298](https://sourceforge.net/p/pmd/bugs/1298/): Member variable int type with value 0xff000000 causes processing error
+* [#1299](https://sourceforge.net/p/pmd/bugs/1299/): MethodReturnsInternalArray false positive
+* [#1302](https://sourceforge.net/p/pmd/bugs/1302/): False Positive: UnusedPrivateField when accessed by inner class
+* [#1303](https://sourceforge.net/p/pmd/bugs/1303/): OverrideBothEqualsAndHashcodeRule does not work on class implements resolvable interfaces
+* [#1304](https://sourceforge.net/p/pmd/bugs/1304/): UseCollectionIsEmpty false positive comparing to 1
+* [#1305](https://sourceforge.net/p/pmd/bugs/1305/): variable declaration inside switch causes ClassCastException
+* [#1306](https://sourceforge.net/p/pmd/bugs/1306/): False positive on duplicate when using static imports
+* [#1307](https://sourceforge.net/p/pmd/bugs/1307/): False positive: SingularField and lambda-expression
+* [#1308](https://sourceforge.net/p/pmd/bugs/1308/): PMD runs endlessly on some generated files
+* [#1312](https://sourceforge.net/p/pmd/bugs/1312/): Rule reference must not override rule name of referenced rule
+* [#1313](https://sourceforge.net/p/pmd/bugs/1313/): Missing assertion message in assertEquals with delta not detected
+* [#1316](https://sourceforge.net/p/pmd/bugs/1316/): Multi Rule Properties with delimiter not possible
+* [#1317](https://sourceforge.net/p/pmd/bugs/1317/): RuntimeException when parsing class with multiple lambdas
+* [#1319](https://sourceforge.net/p/pmd/bugs/1319/): PMD stops with NoClassDefFoundError (typeresolution)
+* [#1321](https://sourceforge.net/p/pmd/bugs/1321/): CPD format XML fails with NullPointer
+* [#1322](https://sourceforge.net/p/pmd/bugs/1322/): MethodReturnsInternalArray on private methods
+* [#1323](https://sourceforge.net/p/pmd/bugs/1323/): False positive case of UseAssertTrueInsteadOfAssertEquals
+* [#1324](https://sourceforge.net/p/pmd/bugs/1324/): MethodReturnsInternalArray false positive with clone()
+* [#1325](https://sourceforge.net/p/pmd/bugs/1325/): Inner class declared within a method fails to parse (ClassCastException)
+* [#1326](https://sourceforge.net/p/pmd/bugs/1326/): PMD 5.3.0-SNAPSHOT doesn't compile under Windows
+
+**API Changes:**
+
+*   `net.sourceforge.pmd.cpd.Match.iterator()` now returns an iterator of the new type `net.sourceforge.pmd.cpd.Mark` instead
+    of TokenEntry. A `Mark` contains all the informations about each single duplication, including the TokenEntry via `Mark.getToken()`.
+    This Mark is useful for reporting the correct line count for each duplication. Previously only one line count was available.
+    As for some languages CPD can be instructed to ignore comments, the line count could be different in the different files
+    for the same duplication.
+
+*   pmd-test: The utility class `StreamUtil` is deprecated. Just use Apache Commons IO Utils instead.
+
+
 ## December 21, 2014 - 5.2.3:
 
 **Feature Requests and Improvements:**

@@ -10,6 +10,7 @@ The Design ruleset contains rules that flag suboptimal code implementations. Alt
 are suggested.
   </description>
 
+  <rule deprecated="true" name="UseSingleton" ref="UseUtilityClass"/>
   <rule name="UseUtilityClass"
   		  since="0.3"
         message="All methods are static.  Consider using a utility class instead. Alternatively, you could add a private constructor or make the class abstract to silence this warning."
@@ -1297,17 +1298,70 @@ public static Foo getFoo() {
         ]]></example>
     </rule>
 
+<rule name="SingleMethodSingleton"
+		since="5.4"
+		externalInfoUrl="${pmd.website.baseurl}/rules/java/design.html#SingleMethodSingleton"
+		message="Class contains multiple getInstance methods. Please review."
+		class="net.sourceforge.pmd.lang.java.rule.design.SingleMethodSingletonRule">
+<description>
+Some classes contain overloaded getInstance. The problem with overloaded getInstance methods
+is that the instance created using the overloaded method is not cached and so, 
+ for each call and new objects will be created for every invocation.
+</description>
+<priority>2</priority>
+<example><![CDATA[
+public class Singleton {
 
+   private static Singleton singleton = new Singleton( );
+   
+  private Singleton(){ }
+   
+public static Singleton getInstance( ) {
+	  return singleton;
+}
+public static Singleton getInstance(Object obj){
+	Singleton singleton = (Singleton) obj;
+	return singleton;			//violation
+}
+}
+]]>
+</example>
+</rule>
 
-    <rule name="UncommentedEmptyMethod"
-   		language="java"
+<rule name="SingletonClassReturningNewInstance"
+		since="5.4"
+		externalInfoUrl="${pmd.website.baseurl}/rules/java/design.html#SingletonClassReturningNewInstance"
+		message="getInstance method always creates a new object and hence does not comply to Singleton Design Pattern behaviour. Please review"
+		class="net.sourceforge.pmd.lang.java.rule.design.SingletonClassReturningNewInstanceRule">
+<description>
+Some classes contain overloaded getInstance. The problem with overloaded getInstance methods
+is that the instance created using the overloaded method is not cached and so, 
+ for each call and new objects will be created for every invocation.
+</description>
+<priority>2</priority>
+<example><![CDATA[
+class Singleton {
+	private static Singleton instance = null;
+	public static Singleton getInstance() {
+	synchronized(Singleton.class){
+		return new Singleton();					
+	}
+	}
+}
+]]>
+</example>
+</rule>
+
+    <rule deprecated="true" name="UncommentedEmptyMethod" ref="UncommentedEmptyMethodBody" />
+    <rule name="UncommentedEmptyMethodBody"
+          language="java"
           since="3.4"
-          message="Document empty method"
+          message="Document empty method body"
           class="net.sourceforge.pmd.lang.rule.XPathRule"
-          externalInfoUrl="${pmd.website.baseurl}/rules/java/design.html#UncommentedEmptyMethod">
+          externalInfoUrl="${pmd.website.baseurl}/rules/java/design.html#UncommentedEmptyMethodBody">
       <description>
-Uncommented Empty Method finds instances where a method does not contain
-statements, but there is no comment. By explicitly commenting empty methods
+Uncommented Empty Method Body finds instances where a method body does not contain
+statements, but there is no comment. By explicitly commenting empty method bodies
 it is easier to distinguish between intentional (commented) and unintentional
 empty methods.
       </description>

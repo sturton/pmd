@@ -32,6 +32,7 @@ public abstract class AbstractInefficientZeroCheck extends AbstractJavaRule {
 
     /**
      * For each relation/equality operator, comparison targets need to define.
+     * 
      * @return map
      */
     public Map<String, List<String>> getComparisonTargets() {
@@ -55,15 +56,14 @@ public abstract class AbstractInefficientZeroCheck extends AbstractJavaRule {
 
     public Object visit(ASTVariableDeclaratorId node, Object data) {
         Node nameNode = node.getTypeNameNode();
-        if (nameNode == null
-            || nameNode instanceof ASTPrimitiveType
-            || !appliesToClassName(node.getNameDeclaration().getTypeImage())) {
+        if (nameNode == null || nameNode instanceof ASTPrimitiveType
+                || !appliesToClassName(node.getNameDeclaration().getTypeImage())) {
             return data;
         }
 
         List<NameOccurrence> declars = node.getUsages();
-        for (NameOccurrence occ: declars) {
-            JavaNameOccurrence jocc = (JavaNameOccurrence)occ;
+        for (NameOccurrence occ : declars) {
+            JavaNameOccurrence jocc = (JavaNameOccurrence) occ;
             if (!isTargetMethod(jocc)) {
                 continue;
             }
@@ -74,40 +74,62 @@ public abstract class AbstractInefficientZeroCheck extends AbstractJavaRule {
     }
 
     /**
-     * Checks whether the given expression is a equality/relation expression that
-     * compares with a size() call.
+     * Checks whether the given expression is a equality/relation expression
+     * that compares with a size() call.
      * 
-     * @param data the rule context
-     * @param location the node location to report
-     * @param expr the ==, <, > expression
+     * @param data
+     *            the rule context
+     * @param location
+     *            the node location to report
+     * @param expr
+     *            the ==, <, > expression
      */
     protected void checkNodeAndReport(Object data, Node location, Node expr) {
-        if ((expr instanceof ASTEqualityExpression
-            || (expr instanceof ASTRelationalExpression
-                    && (getComparisonTargets().containsKey(expr.getImage()))))
-            && isCompare(expr)) {
+        if ((expr instanceof ASTEqualityExpression || expr instanceof ASTRelationalExpression
+                && getComparisonTargets().containsKey(expr.getImage()))
+                && isCompare(expr)) {
             addViolation(data, location);
         }
     }
 
     /**
-     * We only need to report if this is comparing against one of the comparison targets
+     * We only need to report if this is comparing against one of the comparison
+     * targets
      * 
      * @param equality
-     * @return true if this is comparing to one of the comparison targets else false
+     * @return true if this is comparing to one of the comparison targets else
+     *         false
      * @see #getComparisonTargets()
      */
     private boolean isCompare(Node equality) {
         if (isLiteralLeftHand(equality)) {
             return checkComparison(inverse.get(equality.getImage()), equality, 0);
-        } else {
+        } else if (isLiteralRightHand(equality)) {
             return checkComparison(equality.getImage(), equality, 1);
         }
+        return false;
     }
 
     private boolean isLiteralLeftHand(Node equality) {
-        return equality.jjtGetChild(0).jjtGetChild(0).jjtGetNumChildren() > 0
-                && equality.jjtGetChild(0).jjtGetChild(0).jjtGetChild(0) instanceof ASTLiteral;
+        return isLiteral(equality, 0);
+    }
+
+    private boolean isLiteralRightHand(Node equality) {
+        return isLiteral(equality, 1);
+    }
+
+    private boolean isLiteral(Node equality, int child) {
+        Node target = equality.jjtGetChild(child);
+        target = getFirstChildOrThis(target);
+        target = getFirstChildOrThis(target);
+        return target instanceof ASTLiteral;
+    }
+
+    private Node getFirstChildOrThis(Node node) {
+        if (node.jjtGetNumChildren() > 0) {
+            return node.jjtGetChild(0);
+        }
+        return node;
     }
 
     /**
@@ -117,11 +139,15 @@ public abstract class AbstractInefficientZeroCheck extends AbstractJavaRule {
      * @param equality
      * @param i
      *            The ordinal in the equality expression to check
-     * @return true if the value in position i is one of the comparison targets, else false
+     * @return true if the value in position i is one of the comparison targets,
+     *         else false
      * @see #getComparisonTargets()
      */
     private boolean checkComparison(String operator, Node equality, int i) {
-        Node target = equality.jjtGetChild(i).jjtGetChild(0).jjtGetChild(0);
+        Node target = equality
+                .jjtGetChild(i)
+                .jjtGetChild(0)
+                .jjtGetChild(0);
         return target instanceof ASTLiteral && getComparisonTargets().get(operator).contains(target.getImage());
     }
 
