@@ -1060,8 +1060,32 @@ ASTReadPastNextOccurrence ReadPastNextOccurrence(String target) :
 ASTSqlStatement SqlStatement(String initiator, String terminator)  :
 {}
 {
-	(<SELECT>|<UPDATE>|<INSERT>|<DELETE>|<COMMIT>|<ROLLBACK>|<SAVEPOINT>|<EXECUTE>|<SET><TRANSACTION>|<LOCK><TABLE>|<MERGE>|<WITH>)
-	Skip2NextTerminator(initiator,terminator)
+	//(<SELECT>|<UPDATE>|<INSERT>|<DELETE>|<COMMIT>|<ROLLBACK>|<SAVEPOINT>|<EXECUTE>|<SET><TRANSACTION>|<LOCK><TABLE>|<MERGE>|<WITH>)
+	//Skip2NextTerminator(initiator,terminator)
+	(
+         // <SELECT>|<WITH>
+	  SqlSelectStatement()
+         |//<UPDATE>
+	  SqlUpdateStatement()
+         |//<DELETE>
+	  SqlDeleteStatement()
+         |//<INSERT>
+	  SqlInsertStatement()
+         |//<MERGE>
+	  SqlMergeStatement()
+         |//<COMMIT>
+	 CommitStatement()
+         |// <ROLLBACK>
+	  RollbackStatement()
+         |// <SAVEPOINT>
+	  SavepointStatement()
+         |// <EXECUTE>
+	  EmbeddedSqlStatement()  
+         |// <SET><TRANSACTION>
+	  SetTransactionStatement()
+         |// <LOCK><TABLE>
+	  LockTableStatement()
+        )
 	{
           return jjtThis ;
 	}
@@ -1140,9 +1164,11 @@ ASTUnlabelledStatement UnlabelledStatement()  :
 {}
 {
        (
-	LOOKAHEAD(["("] <SELECT>|<UPDATE>|<INSERT>|<DELETE>|<COMMIT>|<ROLLBACK>|<SAVEPOINT>|<EXECUTE>|<SET><TRANSACTION>|<LOCK><TABLE>|<MERGE>|<WITH>) SqlStatement(null,";") [";"] 
-	| LOOKAHEAD(3)  ContinueStatement()  ";" // CONTINUE keyword was added in 11G, so Oracle compilation supports CONTINUE as a variable name
-	| CaseStatement()  ";"
+	//(<SELECT>|<UPDATE>|<INSERT>|<DELETE>|<COMMIT>|<ROLLBACK>|<SAVEPOINT>|<EXECUTE>|<SET><TRANSACTION>|<LOCK><TABLE>|<MERGE>|<WITH>)
+	//Skip2NextTerminator(initiator,terminator)
+	//LOOKAHEAD(["("] <SELECT>|<UPDATE>|<INSERT>|<DELETE>|<MERGE>|<WITH>) SqlStatement(null,";") [";"] 
+         // <SELECT>|<WITH>
+	  CaseStatement()  ";"
 	| IfStatement()  ";"
 	| ForStatement()  ";"
 	| ForAllStatement()  ";"
@@ -1156,11 +1182,22 @@ ASTUnlabelledStatement UnlabelledStatement()  :
 	| OpenStatement()  ";"
 	| FetchStatement()  ";"
 	| Block()  ";"
-	| EmbeddedSqlStatement()  ";"
+	| LOOKAHEAD(2)  EmbeddedSqlStatement() ";"
 	| PipelineStatement()  ";"
 	| ConditionalCompilationStatement()  // Conditional Compilation works outside the normal parsing rules 
         | InlinePragma() ";"
-        | Expression() ";"
+	| LOOKAHEAD(2)  RollbackStatement() ";" 
+	| LOOKAHEAD(2)  SavepointStatement() ";" 
+	| LOOKAHEAD(2)  SetTransactionStatement() ";" 
+	| LOOKAHEAD(2)  LockTableStatement() ";" 
+	| LOOKAHEAD(2)  CommitStatement()  ";" 
+	| LOOKAHEAD(3)  ContinueStatement()  ";" // CONTINUE keyword was added in 11G, so Oracle compilation supports CONTINUE as a variable name
+        | LOOKAHEAD( Expression() )Expression()  ";"
+	| LOOKAHEAD( SqlUpdateStatement() )  SqlUpdateStatement() ";" 
+	| LOOKAHEAD( SqlDeleteStatement() )  SqlDeleteStatement() ";" 
+	| LOOKAHEAD( SqlInsertStatement() )  SqlInsertStatement() ";" 
+	| LOOKAHEAD( SqlMergeStatement() )   SqlMergeStatement() ";" 
+	| LOOKAHEAD( SqlSelectStatement() )  SqlSelectStatement() ";" 
       )
       { return jjtThis ; }
 }
@@ -1598,6 +1635,1748 @@ ASTCursorBody CursorBody()  : {}
 }
 
 
+/*
+ * Start SQL Parser
+ */
+
+//http://docs.oracle.com/cd/B19306_01/server.102/b14200/statements_4010.htm
+//http://docs.oracle.com/database/121/PLSQLRF/statements_4011.htm#PLSQLRF01110
+ASTCommitStatement CommitStatement()  :
+{}
+{
+	<COMMIT> [<WORK>]
+        [
+		( <COMMENT> StringLiteral() [ <WRITE> [ <IMMEDIATE> | <BATCH>  ] [ <WAIT> | <NOWAIT>  ] ] )
+		|
+		( <FORCE>	(
+				  <CORRUPT_XID_ALL> 
+				| <CORRUPT_XID> StringLiteral() 
+				| StringLiteral() [ "," NumericLiteral() ] )
+				)
+        ]
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/cd/B19306_01/server.102/b14200/statements_9021.htm#PLSQLRF01610
+//http://docs.oracle.com/database/121/PLSQLRF/statements_9022.htm#PLSQLRF01610
+ASTRollbackStatement RollbackStatement()  :
+{}
+{
+	<ROLLBACK> [ <WORK> ]
+        [
+		( <TO> [ <SAVEPOINT> ] ID() )
+		|
+		( <FORCE> StringLiteral() [ "," NumericLiteral() ]  )
+        ]
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/cd/B19306_01/server.102/b14200/statements_10001.htm#BABFIJGC
+//http://docs.oracle.com/database/121/PLSQLRF/statements_10001.htm#PLSQLRF01701
+ASTSavepointStatement SavepointStatement()  :
+{}
+{
+	 <SAVEPOINT> ID() 
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/cd/B19306_01/server.102/b14200/statements_9021.htm#PLSQLRF01610
+//http://docs.oracle.com/database/121/PLSQLRF/statements_10005.htm#PLSQLRF01705
+ASTSetTransactionStatement SetTransactionStatement()  :
+{}
+{
+	<SET> <TRANSACTION> 
+        [
+		(  <READ>  ( <ONLY> | <WRITE> )  )
+		|
+		( <ISOLATION> <LEVEL> ( <SERIALIZABLE>  | <READ> <COMMITTED>  ) )
+		|
+		( <USE> <ROLLBACK> <SEGMENT> ID() )
+        ]
+	<NAME> StringLiteral()
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/cd/B12037_01/appdev.101/b10807/13_elems027.htm
+ASTLockTableStatement LockTableStatement()  :
+{}
+{
+	//ROW SHARE, ROW EXCLUSIVE, SHARE UPDATE, SHARE, SHARE ROW EXCLUSIVE, or EXCLUSIVE.
+	 <LOCK> <TABLE> QualifiedID()  <IN>  
+         (
+		<ROW> ( <SHARE> | <EXCLUSIVE> )
+		|  <SHARE> [ <UPDATE> | <ROW> <EXCLUSIVE> ]
+		| <EXCLUSIVE> 
+	 )
+	<MODE> [ <NOWAIT> ]  
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/database/121/PLSQLRF/statements_10002.htm#i2065706
+ASTSqlSelectStatement SqlSelectStatement()  :
+{}
+{
+	
+	SqlSubquery()
+	[ SqlForUpdateClause() ]
+
+      { return jjtThis ; }
+}
+
+
+//http://docs.oracle.com/cd/B19306_01/appdev.102/b14261/delete_statement.htm#i33716
+//http://docs.oracle.com/database/121/PLSQLRF/statements_8005.htm#i2112830
+ASTSqlDeleteStatement SqlDeleteStatement()  :
+{}
+{
+	<DELETE> [ <FROM> ] 
+	(
+		<ONLY> "(" SqlDmlTableExpression() ")"
+		| SqlDmlTableExpression() 
+	) 
+	[ UnqualifiedID() ] // alias	
+	[
+		<WHERE> 
+		( <CURRENT> <OF> UnqualifiedID() //Cursor Name 
+		| SqlCondition()
+		)
+	]
+
+	[ SqlReturningClause() ]
+
+	[ SqlErrorLoggingClause() ]
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlDmlTableExpression SqlDmlTableExpression()  :
+{}
+{
+		QualifiedName() 
+		| "(" SqlSubquery() ")"
+		| <TABLE> "(" SqlSubquery() ")"   
+
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/cd/B28359_01/server.111/b28286/statements_9016.htm
+ASTSqlMergeStatement SqlMergeStatement()  :
+{}
+{
+	<MERGE> <INTO> QualifiedName() //Table NAme
+	<USING>
+	<ON> "(" SqlCondition() ")"
+	// Matched Clause
+	<WHEN> <MATCHED> <THEN> 
+	<UPDATE> <SET> 
+	QualifiedName() 
+	"=" 
+	(
+		<_DEFAULT>
+		|
+		SqlExpression() 
+		
+	)
+	(
+		"'"
+		<_DEFAULT>
+		|
+		SqlExpression() 
+	)*
+	//WHERE 
+	[ SqlWhereClause() ]
+
+	[ <DELETE> SqlWhereClause() ]
+	
+	
+	<WHEN> <NOT> <MATCHED> <THEN> 
+	<INSERT> 
+	"("
+		//Column Alias List 
+		QualifiedID() ( "," QualifiedID() )* 
+	")"
+	<VALUES> 
+	"("
+		(
+			<_DEFAULT>
+			|
+			SqlExpression() 
+			
+		)
+		(
+			"'"
+			<_DEFAULT>
+			|
+			SqlExpression() 
+		)*
+	")"
+	[ SqlWhereClause() ]
+
+	[ SqlErrorLoggingClause() ]
+ 
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlErrorLoggingClause SqlErrorLoggingClause()  :
+{}
+{
+	<LOG> <ERRORS> 
+	[
+		<INTO> QualifiedName() 
+		"("
+			SqlExpression() 
+		")"
+	]
+
+	[
+		<REJECT> <LIMIT> ( <UNLIMITED> | NumericLiteral() )
+	]
+
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/database/121/PLSQLRF/statements_9014.htm#sthref7054
+//http://docs.oracle.com/database/121/PLSQLRF/statements_9014.htm#i2111652
+ASTSqlInsertStatement SqlInsertStatement()  :
+{}
+{
+
+	<INSERT> 
+	(
+		//Single-Table INSERT 
+		(
+			//INSERT INTO Clause 
+			SqlInsertIntoClause() 
+			(
+				//Values Clause 
+				(
+					SqlValuesClause() 
+					[ SqlReturningClause() ] 
+				)
+				| SqlSubquery() 
+			)
+
+
+			[ SqlErrorLoggingClause() ]
+
+			
+		)
+		//Multi-Table INSERT 
+		|
+		(
+			(
+				(
+					<ALL> 
+					
+					//INSERT INTO Clause 
+					SqlInsertIntoClause() 
+					
+					//Values Clause 
+					SqlValuesClause() 
+
+					[ SqlErrorLoggingClause() ]
+				)
+			)
+			| //Multi-table INSERT 
+			(
+				[ <ALL> | <FIRST> ]
+				
+				 ( 
+					<WHEN> SqlCondition() <THEN> 
+
+					//INSERT INTO Clause 
+					SqlInsertIntoClause() 
+					
+					//Values Clause 
+					SqlValuesClause() 
+
+					[ SqlErrorLoggingClause() ]
+				 )*
+
+				<ELSE> 
+					//INSERT INTO Clause 
+					SqlInsertIntoClause() 
+					
+					//Values Clause 
+					SqlValuesClause() 
+
+					[ SqlErrorLoggingClause() ]
+			)
+			SqlSubquery() 
+		)
+	)
+
+	[ SqlReturningClause() ]
+
+	[ SqlErrorLoggingClause() ]
+
+      { return jjtThis ; }
+}
+
+
+
+
+ASTSqlInsertIntoClause SqlInsertIntoClause()  :
+{}
+{
+
+	//INTO Table Clause 
+	<INTO>
+	SqlDmlTableExpression() 
+
+	[ UnqualifiedID() ] //Alias   
+
+	[
+		"("
+			//Column Alias List 
+			UnqualifiedID() ( "," UnqualifiedID() )* 
+		")"
+	]
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlValuesClause SqlValuesClause()  :
+{}
+{
+	<VALUES> 
+	"("
+		(
+			<_DEFAULT>
+			|
+			SqlExpression() 
+			
+		)
+		(
+			"'"
+			<_DEFAULT>
+			|
+			SqlExpression() 
+		)*
+	")"
+	
+
+      { return jjtThis ; }
+}
+
+
+//http://docs.oracle.com/cd/B19306_01/appdev.102/b14261/update_statement.htm#i36431
+ASTSqlUpdateStatement SqlUpdateStatement()  :
+{}
+{
+	<UPDATE> 
+	(
+		QualifiedName() 
+		| "(" SqlSubquery() ")"
+		| <TABLE> "(" SqlSubquery() ")"   
+	) 
+	[ UnqualifiedID() ] // alias	
+	<SET> 
+	( 
+          SqlColumnAssignment() ( "," SqlColumnAssignment()  )*
+	)
+	[
+		<WHERE> 
+		( <CURRENT> <OF> UnqualifiedID() //Cursor Name 
+		| SqlCondition()
+		)
+	]
+
+	[ SqlReturningClause() ]
+
+	[ SqlErrorLoggingClause() ]
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlColumnAssignment SqlColumnAssignment()  :
+{}
+{
+
+	// Single-column assignment 
+	(
+		QualifiedName() "=" 
+		(
+			( "(" SqlSubquery() ")" )
+			| 
+			SqlExpression() 
+		)
+	)
+	| // Multi-column assigment 
+	(
+		"("
+			//Column Alias List 
+			QualifiedID() ( "," QualifiedID() )* 
+		")"
+		"="
+		 "(" SqlSubquery() ")" 
+	)
+      { return jjtThis ; }
+}
+
+
+//http://docs.oracle.com/cd/B19306_01/appdev.102/b14261/returninginto_clause.htm#CJAGFGDE
+ASTSqlReturningClause SqlReturningClause()  :
+{}
+{
+	( <RETURN> | <RETURNING> ) SqlExpression() ("," SqlExpression())* [<BULK> <COLLECT>] <INTO> SqlExpression() ("," SqlExpression())*
+
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/database/121/PLSQLRF/statements_10002.htm#i2126016
+ASTSqlForUpdateClause SqlForUpdateClause()  :
+{}
+{
+	
+	<FOR> <UPDATE> 
+	[ 
+		<OF> Name() ( "," Name() )* 
+	]
+	[
+		<NOWAIT>
+		| <WAIT> NumericLiteral()
+		| <K_SKIP> <LOCKED>
+	]
+
+      { return jjtThis ; }
+}
+
+//http://docs.oracle.com/database/121/PLSQLRF/statements_10002.htm#i2126435
+ASTSqlSubquery SqlSubquery()  :
+{}
+{
+	(
+	/*
+	SqlQueryBlock()
+	| 
+	  ( 
+		// Left recursion SqlSubquery() //@TODO
+		SqlQueryBlock()
+		(
+			<UNION> [ <ALL> ]
+			| <INTERSECT>
+			| <MINUS>
+		//SqlSubquery()
+		SqlSelectClause()
+		)*
+	  )
+        */
+	  ( "(" SqlSubquery() ")" )
+          |
+          ( 
+		SqlQueryBlock()
+		(
+			<UNION> [ <ALL> ]
+			| <INTERSECT>
+			| <MINUS>
+		//SqlSubquery()
+		SqlSelectClause()
+		)*
+	  )
+	)
+	SqlOrderByClause()
+	SqlRowLimitingClause()
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlQueryBlock SqlQueryBlock()  :
+{}
+{
+	[
+	  SqlWithClause()
+	]
+
+	SqlSelectClause()
+	/* @TODO to circumvent Left recursion  
+	<SELECT>
+	[
+		((<DISTINCT>|<UNIQUE>)
+                 | <ALL>
+                )
+	]
+	SqlSelectList()
+	<FROM>
+	SqlTableClause() ( ","  SqlTableClause() )*
+	SqlWhereClause() 
+	SqlHierarchicalQueryClause() 
+	SqlGroupByClause() 
+	SqlModelClause() 
+	*/
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlSelectClause SqlSelectClause()  :
+{}
+{
+	<SELECT>
+	[
+		(
+			(<DISTINCT>|<UNIQUE>) //Synonyms 
+			| <ALL>
+		)
+	]
+	SqlSelectList()
+	<FROM>
+	SqlTableClause() ( ","  SqlTableClause() )*
+	SqlWhereClause() 
+	SqlHierarchicalQueryClause() 
+	SqlGroupByClause() 
+	SqlModelClause() 
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlTableClause SqlTableClause()  :
+{}
+{
+	/*
+	"(" SqlJoinClause() ")"
+	|  SqlTableReference()
+	| SqlJoinClause()
+        
+	Refactored out leading  SqlTableReference() to remove grammar ambiguity
+	*/
+	"(" SqlTableReference() SqlJoinClause() ")"
+	|  SqlTableReference() [ SqlJoinClause() ]
+
+      { return jjtThis ; }
+}
+
+ASTSqlWithClause SqlWithClause()  :
+{}
+{
+
+      <WITH> 
+	//@TODO PLSQL Declarations - 12c
+	(
+	SqlPLSQLDeclarations() ( SqlPLSQLDeclarations() )*
+	| SqlSubqueryRefactoringClause()
+	)+
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlPLSQLDeclarations SqlPLSQLDeclarations()  :
+{}
+{
+	  MethodDeclarator()  
+	  (
+		DeclarativeSection()
+		 <BEGIN> (Statement())* (ExceptionHandler())?  <END> [ID()] 
+	  ) 
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlSubqueryRefactoringClause SqlSubqueryRefactoringClause()  :
+{}
+{
+      UnqualifiedID() //Query name) 
+	"("
+		//Column Alias List 
+		UnqualifiedID() ( "," UnqualifiedID() )* 
+	")"
+	<AS>
+	"("
+		SqlSubquery()
+		SqlSearchClause()
+		SqlCycleClause()
+	")"
+	
+	
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlSearchClause SqlSearchClause()  :
+{}
+{
+	<SEARCH> 
+	( <DEPTH>|<BREADTH> ) 
+	<FIRST> <BY> SqlColumnOrderingClause() ( "," SqlColumnOrderingClause() )*
+	<SET> Name() //Ordering Column 
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlCycleClause SqlCycleClause()  :
+{}
+{
+	<CYCLE> 
+	UnqualifiedID() ( "," UnqualifiedID() )* 
+	<SET> UnqualifiedID() //Cycle Mark Column Alias
+	<TO> SqlExpression() <_DEFAULT> SqlExpression()
+	
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlSelectList SqlSelectList()  :
+{}
+{
+	(
+	QualifiedID() "." "*"
+	| SqlExpression() [ [ <AS> ] UnqualifiedID() ] //ColumnAlias
+	)
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlTableReference SqlTableReference()  :
+{}
+{
+
+	(
+		SqlContainersClause()
+		| 
+		(
+			(
+				<ONLY> "(" SqlQueryTableExpression() ")"
+				|
+				SqlQueryTableExpression()
+			)
+			[ SqlFlashbackQueryClause() ]
+			[
+				SqlPivotClause()
+				| SqlUnpivotClause()
+				| SqlRowPatternClause()
+			]
+		)
+	)
+	
+	[ UnqualifiedID() ] //Table Alias
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlFlashbackQueryClause SqlFlashbackQueryClause()  :
+{}
+{
+	(
+		<VERSIONS>
+		(
+			( <BETWEEN> ( <SCN> | <TIMESTAMP> )   )
+			|
+			( <PERIOD> <FOR> QualifiedID() <BETWEEN>  )
+		)
+		(
+			( <MINVALUE> | SqlExpression() )
+			<AND>
+			( <MAXVALUE> | SqlExpression() )
+		)
+	)
+	|
+	(
+		<AS> <OF> 
+		(
+			( <SCN> | <TIMESTAMP> ) 
+			SqlExpression() 
+		)
+		|
+		(
+			( <PERIOD> <FOR> QualifiedID() SqlExpression()  )
+		)
+	
+	)
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlQueryTableExpression SqlQueryTableExpression()  :
+{}
+{
+	UnqualifiedID() //Query Name 
+	|  ( [ <LATERAL> ] "(" SqlSubquery() [ SqlSubqueryRestrictionClause() ] ")"  )
+	|  ( QualifiedID() 
+		[ 
+			(" @" QualifiedID() /* DBLink Name */ )
+			| 
+			SqlPartitionExtensionClause() 
+		] 
+		[ SqlSampleClause() ]
+	   )
+	|  SqlTableCollectionExpression()
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlPivotClause SqlPivotClause()  :
+{}
+{
+	<PIVOT> [ <XML> ]
+
+	"("
+		(
+			SqlAggregateFunction() "(" SqlExpression() "}" 
+			[ <AS> ]
+			 UnqualifiedID() //Alias 
+		)
+		( 
+			"," 
+			(
+				SqlAggregateFunction() "(" SqlExpression() "}" 
+				[ <AS> ]
+				 UnqualifiedID() //Alias 
+			)
+		)
+		SqlPivotForClause()
+		SqlPivotInClause()
+	")"
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlReferencedColumns SqlReferencedColumns()  :
+{}
+{
+		QualifiedID() //Column Name 
+		|
+		//Column List 
+		(
+			"("
+				QualifiedID() ( "," QualifiedID() )*
+			")"
+		)
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlPivotForClause SqlPivotForClause()  :
+{}
+{
+	<FOR> SqlReferencedColumns() 
+	
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlPivotInClause SqlPivotInClause()  :
+{}
+{
+	<IN> "("
+		(
+
+			<ANY> ( "," <ANY> )*
+			| SqlSubquery()
+			| SqlColumnExpression() ( ","  SqlColumnExpression() )
+		)
+		
+	")"
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlUnpivotClause SqlUnpivotClause()  :
+{}
+{
+	<UNPIVOT> 
+	[ [ <INCLUDE> | <EXCLUDE> ] <NULLS> ]
+	"("
+		SqlReferencedColumns() 
+		SqlPivotForClause() 
+		SqlUnpivotInClause()
+	")"
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlUnpivotInClause SqlUnpivotInClause()  :
+{}
+{
+	<IN> "("
+		SqlReferencedColumns()
+		<AS>
+		(
+			Literal()
+			|
+			"(" Literal() ( "," Literal() )* ")" 
+		)
+		
+	")"
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlSampleClause SqlSampleClause()  :
+{}
+{
+	<SAMPLE> [ <BLOCK> ]
+	"("
+		NumericLiteral() //Sample Percentage 
+	")"
+	[
+		<SEED>
+		"("
+			Literal() //Seed Value NumericLiteral() ?
+		")"
+	]
+
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlPartitionExtensionClause SqlPartitionExtensionClause()  :
+{}
+{
+
+	( <PARTITION> | <SUBPARTITION> )
+	(
+		"(" QualifiedID() ( "," QualifiedID() )*  ")" 
+		|
+		<FOR> "("  QualifiedID() ( "," QualifiedID() )* ")" 
+	)
+
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlSubqueryRestrictionClause SqlSubqueryRestrictionClause()  :
+{}
+{
+
+	<WITH>
+	[ 
+		( <READ> <ONLY> )
+		|
+		( <CHECK> <OPTION> )
+	] 
+	[
+		<CONSTRAINT> UnqualifiedID() //Constraint Name 
+	]
+
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlTableCollectionExpression SqlTableCollectionExpression()  :
+{}
+{
+
+	<TABLE> "(" SqlCollectionExpression() ")" [ "(" "+" ")" ]
+
+      { return jjtThis ; }
+}
+
+
+
+//http://docs.oracle.com/database/121/PLSQLRF/statements_8005.htm#i2112830
+//The collection_expression can be a subquery, a column, a function, or a collection constructor. Regardless of its form, it must return a collection value¿that is, a value whose type is nested table or varray. This process of extracting the elements of a collection is called collection unnesting.
+ASTSqlCollectionExpression SqlCollectionExpression()  :
+{}
+{
+	SqlSubquery()
+	| SqlExpression() // Column, Function, Collection Constructor 
+
+      { return jjtThis ; }
+}
+
+ASTSqlContainersClause SqlContainersClause()  :
+{}
+{
+
+	<CONTAINERS>
+	"(" 
+		QualifiedID() ( "," QualifiedID() )*
+	")"
+
+      { return jjtThis ; }
+}
+
+
+//http://docs.oracle.com/database/121/PLSQLRF/statements_10002.htm#CHDIJFDJ
+ASTSqlJoinClause SqlJoinClause()  :
+{}
+{
+	// Move up to remove ambiguity SqlTableReference()
+	(
+		//@TODO remove SqlJoinedTableReferences()
+		//INNER CROSS JOIN CLAUSE 
+		(
+			(
+				[ <INNER> ] <JOIN> SqlTableReference() 
+				(
+					( <ON> SqlCondition() )
+					( <USING> 
+						//Column List 
+						"(" 
+							QualifiedID() ( "," QualifiedID() )*
+						")"
+					)
+				)
+			)
+			|
+			(
+				(
+					( <CROSS> )
+					|
+					( <NATURAL> [ <INNER> ] )
+				)
+				<JOIN> SqlTableReference() 
+			)
+		)
+
+		//OUTER JOIN CLAUSE 
+		|
+		(
+			[ SqlQueryPartitionClause() ]
+			[ <NATURAL> ]
+			SqlOuterJoinType() 
+			<JOIN> SqlTableReference() 
+			[ SqlQueryPartitionClause() ]
+			(
+				( <ON> SqlExpression() )
+				( <USING> 
+					//Column List 
+					"(" 
+						QualifiedID() ( "," QualifiedID() )*
+					")"
+				)
+			)
+		)
+
+		//CROSS OUTER APPLY CLAUSE 
+		|SqlCrossOuterApplyClause()  
+
+	)+ 
+	
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlQueryPartitionClause SqlQueryPartitionClause()  :
+{}
+{
+	<PARTITION> <BY> 
+	(
+		"(" SqlExpression() ( ","  SqlExpression() )*  ")"
+		| 
+		SqlExpression() 
+	)
+
+      { return jjtThis ; }
+}
+
+ASTSqlColumnExpression SqlColumnExpression()  :
+{}
+{
+	(
+		"(" SqlExpression() ( ","  SqlExpression() )*  ")"
+		| 
+		SqlExpression() 
+	)
+	[ <AS> UnqualifiedID() ] //Column Alias 
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlOuterJoinType SqlOuterJoinType()  :
+{}
+{
+	( <FULL> | <LEFT> | <RIGHT> )
+	<OUTER>
+
+      { return jjtThis ; }
+}
+
+ASTSqlCrossOuterApplyClause SqlCrossOuterApplyClause()  :
+{}
+{
+	( <CROSS> | <OUTER> )
+	<APPLY>
+	(
+		SqlTableReference()
+		|
+		SqlCollectionExpression()
+	)
+	
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlWhereClause SqlWhereClause()  :
+{}
+{
+	<WHERE>
+	SqlCondition()
+
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlHierarchicalQueryClause SqlHierarchicalQueryClause()  :
+{}
+{
+	(
+		[ <CONNECT> <BY> [ <NOCYCLE> ] SqlCondition() ]
+		[ <START> <WITH> SqlCondition() ]
+	)
+	|
+	(
+		[ <START> <WITH> SqlCondition() <CONNECT> <BY> [ <NOCYCLE> ] ] SqlCondition()
+	)
+	
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlGroupByClause SqlGroupByClause()  :
+{}
+{
+	<GROUP> <BY> 
+	(
+		SqlRollupCubeClause()
+		|SqlGroupingSetsClause()
+		|SqlExpression()
+	)
+	( 
+		"'" 
+		(
+		SqlRollupCubeClause()
+		|SqlGroupingSetsClause()
+		|SqlExpression()
+		)
+	)*
+
+	[ <HAVING> SqlCondition() ]
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRollupCubeClause SqlRollupCubeClause()  :
+{}
+{
+	( <ROLLUP> | <CUBE> )
+	"("
+		SqlGroupingExpressionList()
+	")"
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlGroupingSetsClause SqlGroupingSetsClause()  :
+{}
+{
+	<GROUPING> <SETS> 
+	"("
+	(
+		SqlRollupCubeClause()
+		|SqlGroupingExpressionList()
+	)
+	( 
+		"'" 
+		(
+		SqlRollupCubeClause()
+		|SqlGroupingExpressionList()
+		)
+	)*
+	")"
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlGroupingExpressionList SqlGroupingExpressionList()  :
+{}
+{
+	SqlExpressionList() ( "," SqlExpressionList() )*
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlExpressionList SqlExpressionList()  :
+{}
+{
+	(
+		"(" SqlExpression() ( ","  SqlExpression() )*  ")"
+		| SqlExpression() ( ","  SqlExpression() )*  
+	)
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlModelClause SqlModelClause()  :
+{}
+{
+	<MODEL>
+	SqlCellReferenceOptions()
+	[ SqlReturnRowsClause() ]
+	[ ( SqlReferenceModel() )+ ]
+	SqlMainModel()
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlCellReferenceOptions SqlCellReferenceOptions()  :
+{}
+{
+	[
+		 ( <IGNORE> | <KEEP> ) 
+		<NAV>
+	]
+	[
+		<UNIQUE>
+		 ( <DIMENSION> | <SINGLE> <REFERENCE> ) 
+	]
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlReturnRowsClause SqlReturnRowsClause()  :
+{}
+{
+	<RETURN>
+	( <UPDATED> | <ALL> )
+	<ROWS>
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlReferenceModel SqlReferenceModel()  :
+{}
+{
+	<REFERENCE>
+	UnqualifiedID() //Reference Model Name 
+	<ON> 
+	"(" SqlSubquery() ")" 
+	SqlModelColumnClauses()
+	SqlCellReferenceOptions() 
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlMainModel SqlMainModel()  :
+{}
+{
+	[
+	<MODEL>
+	UnqualifiedID() //Main Model Name 
+	]
+	SqlModelColumnClauses()
+	SqlCellReferenceOptions()
+	SqlModelRulesClause()
+
+      { return jjtThis ; }
+}
+
+ASTSqlModelColumnClauses SqlModelColumnClauses()  :
+{}
+{
+	<PARTITION> <BY> 
+	"("
+		( SqlExpression() [ QualifiedID() ]  )
+		( "'"  SqlExpression() [ QualifiedID() ] )*
+	")"
+
+	<DIMENSION> <BY> 
+	"("
+		( SqlExpression() [ QualifiedID() ]  )
+		( "'"  SqlExpression() [ QualifiedID() ] )*
+	")"
+
+	<MEASURES> 
+	"("
+		( SqlExpression() [ QualifiedID() ]  )
+		( "'"  SqlExpression() [ QualifiedID() ] )*
+	")"
+
+      { return jjtThis ; }
+}
+
+ASTSqlModelColumn SqlModelColumn()  :
+{}
+{
+	SqlExpression() [ [ <AS> ] UnqualifiedID() ]
+
+      { return jjtThis ; }
+}
+
+ASTSqlModelRulesClause SqlModelRulesClause()  :
+{}
+{
+	<RULES>
+	[
+		[ <UPDATE> | <UPSERT> [ <ALL> ] ]
+		[ ( <AUTOMATIC> | <SEQUENTIAL> ) <ORDER> ]
+		SqlModelIterateClause() 
+	]	
+	"("
+		(
+			[ <UPDATE> | <UPSERT> [ <ALL> ] ]
+			SqlCellAssignment()
+			[ SqlOrderByClause() ]
+			"=" 
+			SqlExpression()
+		)
+		(
+			","
+			[ <UPDATE> | <UPSERT> [ <ALL> ] ]
+			SqlCellAssignment()
+			[ SqlOrderByClause() ]
+			"=" 
+			SqlExpression()
+		)*
+		
+		
+	")"
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlModelIterateClause SqlModelIterateClause()  :
+{}
+{
+	<ITERATE> "(" NumericLiteral() ")" 
+	<UNTIL> "(" SqlCondition() ")" 
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlCellAssignment SqlCellAssignment()  :
+{}
+{
+
+	UnqualifiedID() //Measure Column 
+	"["
+		SqlMultiColumnForLoop()
+		| (
+			(
+				SqlSingleColumnForLoop()
+				//| SqlCondition()
+				| SqlExpression()
+			)
+			(
+				","
+				SqlSingleColumnForLoop()
+				//| SqlCondition()
+				| SqlExpression()
+			)*
+		)
+	"]"
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlCondition SqlCondition()  :
+{}
+{
+	ConditionalOrExpression() 
+
+      { return jjtThis ; }
+}
+
+ASTSqlSingleColumnForLoop SqlSingleColumnForLoop()  :
+{}
+{
+	<FOR> 
+	QualifiedID() //Dimension Column 
+	(
+		(
+			<IN> 
+			"("
+				( Literal() | SqlSubquery() )
+				( "," Literal() | SqlSubquery() )*
+			")"
+		)
+		|
+		(
+			[ <LIKE> SqlExpression() /* pattern() */ ] //@TODO what is a valid pattern?  
+			<FROM> Literal() 
+			<TO> Literal()
+			( <INCREMENT> | <DECREMENT> ) Literal()
+		)
+	)
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlMultiColumnForLoop SqlMultiColumnForLoop()  :
+{}
+{
+	<FOR> 
+	"(" QualifiedID() //Dimension Column 
+	  "," QualifiedID() //Dimension Column 
+	")"
+	(
+		(
+			<IN> 
+			"("
+				( "(" Literal() ( ","  Literal() )* ")" | SqlSubquery() )
+				( "," "(" Literal() ( ","  Literal() )* ")" | SqlSubquery() )*
+			")"
+		)
+	)
+
+      { return jjtThis ; }
+}
+
+
+
+ASTSqlOrderByClause SqlOrderByClause()  :
+{}
+{
+	<ORDER> [ <SIBLINGS> ] <BY> 
+	SqlColumnOrderingClause() ( "," SqlColumnOrderingClause() )*
+	
+	[ <ASC> | <DESC> ]
+
+      { return jjtThis ; }
+}
+
+ASTSqlColumnOrderingClause SqlColumnOrderingClause()  :
+{}
+{
+	UnqualifiedID() // Column Alias 	
+	[ <ASC> | <DESC> ]
+	[ <NULLS>  [ <FIRST> | <LAST> ] ]
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowLimitingClause SqlRowLimitingClause()  :
+{}
+{
+
+	[ <OFFSET> NumericLiteral() ( <ROW> | <ROWS> )  ]
+
+	[ 
+		<FETCH> ( <FIRST> | <NEXT> ) 
+		[ NumericLiteral() [ <PERCENT> ] ]
+
+		[ <ROW> | <ROWS> ] 
+		[ <ONLY> | <WITH> <TIES> ]
+	]
+
+      { return jjtThis ; }
+}
+
+
+
+
+//http://docs.oracle.com/database/121/PLSQLRF/statements_10002.htm#BABDACDD
+ASTSqlRowPatternClause SqlRowPatternClause()  :
+{}
+{
+
+	<MATCH> <RECOGNIZE>
+	"("
+		[ SqlRowPatternPartitionBy() ]
+		[ SqlRowPatternOrderBy() ]
+		[ SqlRowPatternMeasures() ]
+		[ SqlRowPatternRowsPerMatch() ]
+		[ SqlRowPatternSkipTo() ]
+		<PATTERN>
+		"("
+			SqlRowPattern()
+		")"
+		[ SqlRowPatternSubsetClause() ] 
+		<DEFINE>
+		SqlRowPatternDefinitionList()
+	")"
+
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPatternPartitionBy SqlRowPatternPartitionBy()  :
+{}
+{
+	<PATTERN> <BY> 
+	QualifiedID() //Column 
+	"," QualifiedID() //Column 
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternOrderBy SqlRowPatternOrderBy()  :
+{}
+{
+
+	<ORDER> <BY> 
+	QualifiedID() //Column 
+	"," QualifiedID() //Column 
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPatternMeasures SqlRowPatternMeasures()  :
+{}
+{
+	<MEASURES>
+	( SqlExpression() [ <AS> ] UnqualifiedID() )
+	( ","  SqlExpression() [ <AS> ] UnqualifiedID() )
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternRowsPerMatch SqlRowPatternRowsPerMatch()  :
+{}
+{
+
+	( ( <ONE> <ROW> ) | ( <ALL> <ROWS> ) )
+	<PER> <MATCH>
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternSkipTo SqlRowPatternSkipTo()  :
+{}
+{
+
+	<AFTER> <MATCH> <K_SKIP> 
+	(
+		(
+			(
+				( <TO> <NEXT> )
+				|
+				( <PAST> <LAST> )
+			)
+			<ROW>
+			
+		)
+	)
+	|
+	(
+		<TO>
+		(
+			( <FIRST> |  <LAST> )
+			Name() //Variable Name 
+		)
+	)
+	
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPattern SqlRowPattern()  :
+{}
+{
+
+	// [ SqlRowPattern() "|" ]  | SqlRowPatternTerm()  
+	 SqlRowPatternTerm()  ( "|" SqlRowPatternTerm() )*  
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternTerm SqlRowPatternTerm()  :
+{}
+{
+
+	// Left Recusive [ SqlRowPatternTerm() ]  SqlRowPatternFactor()  
+	( SqlRowPatternFactor() ) + 
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternFactor SqlRowPatternFactor()  :
+{}
+{
+
+	SqlRowPatternPrimary() | SqlRowPatternQuantifier()  
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPatternPrimary SqlRowPatternPrimary()  :
+{}
+{
+
+	"$"
+	| "^"
+	| SqlRowPatternPermute() 
+	//| "("  SqlRowPattern()  ")"
+	| "(" 
+		(
+			( "-" SqlRowPattern() "-" )
+			|  SqlRowPattern() 
+		)
+	  ")"
+	| Name() 
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternPermute SqlRowPatternPermute()  :
+{}
+{
+	<PERMUTE>
+	"("
+		SqlRowPattern() ( "," SqlRowPattern() )
+	")"
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternQuantifier SqlRowPatternQuantifier()  :
+{}
+{
+
+	(
+		("*" | "+" | "?" )  [ "?" ]
+	)
+	| ( "{" NumericLiteral()  [ "," [ NumericLiteral() ] ] "}" [ "?" ] )
+	//| ( "{" NumericLiteral()  "}" )
+
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternSubsetClause SqlRowPatternSubsetClause()  :
+{}
+{
+	<SUBSET>
+	SqlRowPatternSubsetItem()
+	( "," SqlRowPatternSubsetItem() )*
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPatternSubsetItem SqlRowPatternSubsetItem()  :
+{}
+{
+
+	Name() "=" 
+	"(" 
+		Name() ( "," Name() )* 
+	")"
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPatternDefinitionList SqlRowPatternDefinitionList()  :
+{}
+{
+	SqlRowPatternDefinition() 
+	
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternDefinition SqlRowPatternDefinition()  :
+{}
+{
+	Name() <AS> SqlCondition() 
+	
+      { return jjtThis ; }
+}
+
+ASTSqlRowPatternRecFunction SqlRowPatternRecFunction()  :
+{}
+{
+
+	( <CLASSIFIER> "(" ")" ) // Row Pattern Classifier Function   
+	| ( <MATCH_NUMBER> "(" ")" )   // Row Pattern Match Number Function   
+	|  SqlRowPatternNavigationFunction()  // Row Pattern Navigation Function   
+	|  SqlRowPatternAggregateFunction()  // Row Pattern Aggregate Function   
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPatternNavigationFunction SqlRowPatternNavigationFunction()  :
+{}
+{
+	//Row Pattern Navigation Logical 
+	(
+		[  <RUNNING> | <FINAL> ]
+		( <FIRST> | <LAST> )
+		"(" SqlExpression() "," NumericLiteral() ")" 
+	)
+
+	|
+	(
+		( <PREV> | <NEXT> )
+		(
+			//Row Pattern Navigation Physical 
+			(
+				"(" SqlExpression() "," NumericLiteral() ")" 
+			)
+			//Row Pattern Navigation Compound 
+			|
+			(
+				( <PREV> | <NEXT> )
+				"(" 
+					[  <RUNNING> | <FINAL> ]
+					( <FIRST> | <LAST> )
+					"(" SqlExpression() "," NumericLiteral() ")"
+
+					"," NumericLiteral() 
+				")" 
+			)
+		)
+	)
+
+
+
+      { return jjtThis ; }
+}
+
+
+ASTSqlRowPatternAggregateFunction SqlRowPatternAggregateFunction()  :
+{}
+{
+
+	[ <RUNNING> | <FINAL> ]
+        ( <AVG> | <COUNT> | <MAX> | <MIN> |  <SUM> ) SqlAggregateFunction()
+
+      { return jjtThis ; }
+}
+
+
+
+/*
+http://docs.oracle.com/database/121/SQLRF/functions003.htm#i89203
+Aggregate Functions 
+
+
+Analytic Function
+http://docs.oracle.com/database/121/SQLRF/functions004.htm#i81407
+http://docs.oracle.com/cd/E11882_01/server.112/e26088/functions004.htm#SQLRF06174
+AnalyticFunction "(" arguments ")" 
+
+ASTSqlAnalyticFunction SqlAnalyticFunction()  :
+{}
+{
+	PrimaryExpression() 
+	<OVER> "(" 
+			[ SqlQueryPartitionClause() ]
+			[ SqlOrderByClause() ]
+			[ SqlWindowingClause() ]
+		")"
+
+      { return jjtThis ; }
+}
+
+ASTSqlWindowingClause SqlWindowingClause()  :
+{}
+{
+	(
+		<ROWS> | <RANGE> 
+	)
+	(
+		(
+		<BETWEEN> 
+			(
+				( <UNBOUNDED> <PRECEDING> )
+				| ( <CURRENT> <ROW> )
+				| ( SqlExpression() ( <PRECEDING> | FOLLOWING> ) ) 
+			)
+			<AND>
+			(
+				( <UNBOUNDED> <FOLLOWING> )
+				| ( <CURRENT> <ROW> )
+				| ( SqlExpression() ( <PRECEDING> | FOLLOWING> ) ) 
+			)
+		)
+		|
+		(
+			( <UNBOUNDED> <PRECEDING> )
+			| ( <CURRENT> <ROW> )
+			| ( SqlExpression() <PRECEDING>  ) 
+		)
+		
+	)
+
+      { return jjtThis ; }
+}
+
+
+*/
+//@TODO
+ASTSqlAggregateFunction SqlAggregateFunction()  :
+{}
+{
+	PrimaryExpression() 
+
+      { return jjtThis ; }
+}
+
+
+//http://docs.oracle.com/database/121/SQLRF/expressions001.htm#i1002626
+//http://docs.oracle.com/database/121/SQLRF/expressions.htm#g1057115
+ASTSqlExpression SqlExpression()  :
+{ 
+  PLSQLNode simpleNode = null;
+  StringBuilder sb = new StringBuilder() ;
+}
+{
+	// Need syntactic lookahead to discriminate between SqlColumnAssignment and a procedure call
+	(
+  	LOOKAHEAD( PrimaryExpression() "=" ) (simpleNode = SqlColumnAssignment()) {sb.append(simpleNode.getImage());  }  
+	| (simpleNode = ConditionalOrExpression() )  {sb.append(simpleNode.getImage()); }  
+	)
+ { 
+ jjtThis.setImage(sb.toString()); return jjtThis; 
+ }
+}
+
+
+/*
+ * End SQL Parser
+ */
+
+
+
 
 // ============================================================================
 // E X P R E S S I O N S
@@ -2005,6 +3784,12 @@ ASTPrimaryPrefix PrimaryPrefix() :
 | LOOKAHEAD(ObjectExpression() ) ( simpleNode = ObjectExpression() ) { sb.append(simpleNode.getImage()) ; } //SRT 20110604
 //| LOOKAHEAD(LikeExpression()) ( simpleNode = LikeExpression() ) { sb.append(simpleNode.getImage()) ; } //SRT 20110604 
 | ( simpleNode =Name() ) { sb.append(simpleNode.getImage()) ; } 
+//@TODO 
+//@TODO | LOOKAHEAD( SqlStatement() ) SqlStatement()
+//@TODO | LOOKAHEAD( SqlDeleteStatement() )  SqlDeleteStatement() ";" 
+//@TODO | LOOKAHEAD( SqlInsertStatement() )  SqlInsertStatement() ";" 
+//@TODO | LOOKAHEAD( SqlMergeStatement() )   SqlMergeStatement() ";" 
+//@TODO | LOOKAHEAD( SqlSelectStatement() )  SqlSelectStatement() ";" 
 | LOOKAHEAD(<SELECT>) (<SELECT>) {sb.append("SELECT ..."); }  Skip2NextTerminator(null,";")  
 | LOOKAHEAD(("(")+ <SELECT>) ("(") {sb.append("(SELECT ..."); }  Skip2NextTerminator("(",")") ")"   
 | LOOKAHEAD(<WITH>) (<WITH>) {sb.append("WITH ..."); }  Skip2NextTerminator(null,";")  
@@ -3284,6 +5069,7 @@ TOKEN [IGNORE_CASE]:
 <CONTINUE: "CONTINUE"> |
 <CONVERT: "CONVERT"> |
 <CREATE: "CREATE"> |
+<CROSS: "CROSS"> |
 <CURRENT: "CURRENT"> |
 <CURRVAL: "CURRVAL"> |
 <CURSOR: "CURSOR"> |
@@ -3306,6 +5092,7 @@ TOKEN [IGNORE_CASE]:
 <ELSIF: "ELSIF"> |
 <ENABLE: "ENABLE"> | // Needed for 11G Trigger Syntax 
 <END: "END"> |
+<ERRORS: "ERRORS"> |
 <ESCAPE: "ESCAPE"> |
 <EXCEPT: "EXCEPT"> |
 <EXCEPTION: "EXCEPTION"> |
@@ -3321,11 +5108,13 @@ TOKEN [IGNORE_CASE]:
 <FALSE: "FALSE"> |
 <FETCH: "FETCH"> |
 <FINAL: "FINAL"> |
+<FIRST: "FIRST"> |
 <FLOAT: "FLOAT"> |
 <FOR: "FOR"> |
 <FORALL: "FORALL"> |
 <FORCE: "FORCE"> |
 <FROM: "FROM"> |
+<FULL: "FULL"> |
 <FUNCTION: "FUNCTION"> |
 <GLOBAL: "GLOBAL"> |
 <GOTO: "GOTO"> |
@@ -3344,6 +5133,7 @@ TOKEN [IGNORE_CASE]:
 <INCLUDING: "INCLUDING"> |
 <INDEXTYPE: "INDEXTYPE"> |
 <INDICATOR: "INDICATOR"> |
+<INNER: "INNER"> |
 <INSERT: "INSERT"> |
 <INSTANTIABLE: "INSTANTIABLE"> |
 <INTEGER: "INTEGER"> |
@@ -3356,6 +5146,7 @@ TOKEN [IGNORE_CASE]:
 <ISOLATION: "ISOLATION"> |
 <JAVA: "JAVA"> |
 //<LANGUAGE: "LANGUAGE"> |
+<LAST: "LAST"> |
 <LEVEL: "LEVEL"> |
 <LIKE: "LIKE"> |
 <LIMIT: "LIMIT"> | 
@@ -3363,7 +5154,9 @@ TOKEN [IGNORE_CASE]:
 <LOCK: "LOCK"> |
 <LONG: "LONG"> |
 <LOOP: "LOOP"> |
+<JOIN: "JOIN"> |
 <MAP: "MAP"> |
+<MATCHED: "MATCHED"> |
 <MAX: "MAX"> |
 <MEMBER: "MEMBER"> | 
 <MERGE: "MERGE"> | 
@@ -3379,6 +5172,7 @@ TOKEN [IGNORE_CASE]:
 <NATURALN: "NATURALN"> |
 <NEW: "NEW"> |
 <NEW_DOT: "NEW."> |
+<NEXT: "NEXT"> |
 <NEXTVAL: "NEXTVAL"> |
 <NO: "NO"> |
 <NOCOMPRESS: "NOCOMPRESS"> | //SRT 2011-04-17
@@ -3400,6 +5194,7 @@ TOKEN [IGNORE_CASE]:
 <OF: "OF"> |
 <OID: "OID"> |
 <ON: "ON"> |
+<ONLY: "ONLY"> |
 <OPAQUE: "OPAQUE"> |
 <OPEN: "OPEN"> |
 <OPERATOR: "OPERATOR"> |
@@ -3409,6 +5204,7 @@ TOKEN [IGNORE_CASE]:
 <ORGANIZATION: "ORGANIZATION"> |
 <OTHERS: "OTHERS"> |
 <OUT: "OUT"> |
+<OUTER: "OUTER"> |
 <OVERRIDING: "OVERRIDING"> |
 <PACKAGE: "PACKAGE"> |
 <PARALLEL_ENABLE: "PARALLEL_ENABLE"> |
@@ -3433,6 +5229,7 @@ TOKEN [IGNORE_CASE]:
 <REAL: "REAL"> |
 <RECORD: "RECORD"> |
 <REF: "REF"> |
+<REJECT: "REJECT"> |
 <RELEASE: "RELEASE"> |
 <RELIES_ON: "RELIES_ON"> | 
 <RENAME: "RENAME"> | //SRT 2011-04-17
@@ -3458,6 +5255,7 @@ TOKEN [IGNORE_CASE]:
 <SET: "SET"> |
 <SIZE: "SIZE"> | //SRT 2011-04-17
 <SHARE: "SHARE"> |
+<K_SKIP: "SKIP"> |
 <SMALLINT: "SMALLINT"> |
 <SPACE: "SPACE"> |
 <SQL: "SQL"> |
@@ -3467,6 +5265,7 @@ TOKEN [IGNORE_CASE]:
 <STATIC: "STATIC"> |
 <STDDEV: "STDDEV"> |
 <SUBTYPE: "SUBTYPE"> |
+<SUBPARTITION: "SUBPARTITION"> |
 <SUBSTITUTABLE: "SUBSTITUTABLE"> |
 <SUCCESSFUL: "SUCCESSFUL"> |
 <SUM: "SUM"> |
@@ -3490,6 +5289,7 @@ TOKEN [IGNORE_CASE]:
 <UI: "UI"> |
 <UNDER: "UNDER"> |
 <UNIQUE: "UNIQUE"> | //SRT 2011-04-17
+<UNLIMITED: "UNLIMITED"> | 
 <USING: "USING"> |
 <VALUES: "VALUES"> | //SRT 2011-04-17
 <WHEN: "WHEN"> |
@@ -3624,6 +5424,145 @@ TOKEN [IGNORE_CASE]:
 | <SHARED : "SHARED">
 | <DIRECTORY : "DIRECTORY">
 | <USER : "USER">
+| <SEARCH: "SEARCH">  
+| <DEPTH: "DEPTH">  
+| <BREADTH: "BREADTH">  
+| <CYCLE: "CYCLE">  
+| <NOCYCLE: "NOCYCLE">  
+| <VERSIONS: "VERSIONS">  
+| <PERIOD: "PERIOD">  
+| <SCN: "SCN">  
+| <MINVALUE: "MINVALUE">  
+| <MAXVALUE: "MAXVALUE">  
+| <LATERAL: "LATERAL">  
+| <PIVOT: "PIVOT">  
+| <UNPIVOT: "UNPIVOT">  
+| <SAMPLE: "SAMPLE">  
+| <BLOCK: "BLOCK">  
+| <SEED: "SEED">  
+| <CONTAINERS: "CONTAINERS">  
+| <APPLY: "APPLY">  
+| <GROUPING: "GROUPING">  
+| <SETS: "SETS">  
+| <ROLLUP: "ROLLUP">  
+| <CUBE: "CUBE">  
+| <MODEL: "MODEL">  
+| <IGNORE: "IGNORE">  
+| <KEEP: "KEEP">  
+| <NAV: "NAV">  
+| <DIMENSION: "DIMENSION">  
+| <SINGLE: "SINGLE">  
+| <REFERENCE: "REFERENCE">  
+| <MEASURES: "MEASURES">  
+| <RULES: "RULES">  
+| <UPSERT: "UPSERT">  
+| <UPDATED: "UPDATED">  
+| <AUTOMATIC: "AUTOMATIC">  
+| <SEQUENTIAL: "SEQUENTIAL">  
+| <ITERATE: "ITERATE">  
+| <UNTIL: "UNTIL">  
+| <INCREMENT: "INCREMENT">  
+| <DECREMENT: "DECREMENT">  
+| <SIBLINGS: "SIBLINGS">  
+| <PERCENT: "PERCENT">  
+| <PERMUTE: "PERMUTE">  
+| <TIES: "TIES">  
+| <WAIT: "WAIT">  
+| <LOCKED: "LOCKED">  
+| <PATTERN: "PATTERN">  
+| <PER: "PER">  
+| <MATCH: "MATCH">  
+| <RECOGNIZE: "RECOGNIZE">  
+| <PAST: "PAST">  
+| <SUBSET: "SUBSET">  
+| <RUNNING: "RUNNING">  
+| <BATCH: "BATCH">
+| <CLASSIFIER: "CLASSIFIER">
+| <COMMITTED: "COMMITTED">
+| <CONSTRAINT: "CONSTRAINT">
+| <EXCLUDE: "EXCLUDE">
+| <INCLUDE: "INCLUDE">
+| <LOG: "LOG">
+| <MATCH_NUMBER: "MATCH_NUMBER">
+| <NULLS: "NULLS">
+| <OFFSET: "OFFSET">
+| <ONE: "ONE">
+| <ORDERED: "ORDERED">
+| <PREV: "PREV">
+| <READ: "READ">
+| <SEGMENT: "SEGMENT">
+| <SERIALIZABLE: "SERIALIZABLE">
+| <USE: "USE">
+| <WORK: "WORK">
+| <WRITE: "WRITE">
+| <XML: "XML">
+| <CORRUPT_XID: "CORRUPT_XID">
+| <CORRUPT_XID_ALL: "CORRUPT_XID_ALL">
+
+/*
+http://docs.oracle.com/database/121/SQLRF/functions003.htm#i89203
+Aggregate Functions 
+*/
+
+| <APPROX_COUNT_DISTINCT: "APPROX_COUNT_DISTINCT">
+//| <AVG: "AVG">
+//| <COLLECT: "COLLECT">
+| <CORR: "CORR">
+//@TODO | <CORR_*: "CORR_*">
+| <COUNT: "COUNT">
+| <COVAR_POP: "COVAR_POP">
+| <COVAR_SAMP: "COVAR_SAMP">
+| <CUME_DIST: "CUME_DIST">
+| <DENSE_RANK: "DENSE_RANK">
+//| <FIRST: "FIRST">
+| <GROUP_ID: "GROUP_ID">
+//| <GROUPING: "GROUPING">
+| <GROUPING_ID: "GROUPING_ID">
+//| <LAST: "LAST">
+| <LISTAGG: "LISTAGG">
+//| <MAX: "MAX">
+| <MEDIAN: "MEDIAN">
+//| <MIN: "MIN">
+| <PERCENT_RANK: "PERCENT_RANK">
+| <PERCENTILE_CONT: "PERCENTILE_CONT">
+| <PERCENTILE_DISC: "PERCENTILE_DISC">
+| <RANK: "RANK">
+| <REGR_SLOPE: "REGR_SLOPE">
+| <REGR_INTERCEPT: "REGR_INTERCEPT">
+| <REGR_COUNT: "REGR_COUNT">
+| <REGR_R2: "REGR_R2">
+| <REGR_AVGX: "REGR_AVGX">
+| <REGR_AVGY: "REGR_AVGY">
+| <REGR_SXX: "REGR_SXX">
+| <REGR_SYY: "REGR_SYY">
+| <REGR_SXY: "REGR_SXY">
+| <STATS_BINOMIAL_TEST: "STATS_BINOMIAL_TEST">
+| <STATS_CROSSTAB: "STATS_CROSSTAB">
+| <STATS_F_TEST: "STATS_F_TEST">
+| <STATS_KS_TEST: "STATS_KS_TEST">
+| <STATS_MODE: "STATS_MODE">
+| <STATS_MW_TEST: "STATS_MW_TEST">
+| <STATS_ONE_WAY_ANOVA: "STATS_ONE_WAY_ANOVA">
+| <STATS_T_TEST_ONE: "STATS_T_TEST_ONE">
+| <STATS_T_TEST_PAIRED: "STATS_T_TEST_PAIRED">
+| <STATS_T_TEST_INDEP: "STATS_T_TEST_INDEP">
+| <STATS_T_TEST_INDEPU: "STATS_T_TEST_INDEPU">
+| <STATS_WSR_TEST: "STATS_WSR_TEST">
+//| <STDDEV: "STDDEV">
+| <STDDEV_POP: "STDDEV_POP">
+| <STDDEV_SAMP: "STDDEV_SAMP">
+//| <SUM: "SUM">
+| <SYS_OP_ZONE_ID: "SYS_OP_ZONE_ID">
+| <SYS_XMLAGG: "SYS_XMLAGG">
+| <VAR_POP: "VAR_POP">
+| <VAR_SAMP: "VAR_SAMP">
+| <VARIANCE: "VARIANCE">
+| <XMLAGG: "XMLAGG">
+
+//ANALYTIC FUNCTION KEYWORDS 
+| <UNBOUNDED: "UNBOUNDED">
+| <FOLLOWING: "FOLLOWING">
+| <PRECEDING: "PRECEDING">
 }
 
 /**
@@ -3825,7 +5764,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <AND_EQUAL>
 //| <ANTIJOIN>
 //| <APPEND>
-//| <APPLY>
+| <APPLY>
 //| <ARCHIVE>
 //| <ARCHIVELOG>
 //| <ARRAY>test_unreserved_keyword.pks
@@ -3842,7 +5781,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <AUTO>
 //| <AUTOALLOCATE>
 //| <AUTOEXTEND>
-//| <AUTOMATIC>
+| <AUTOMATIC>
 //| <AVAILABILITY>
 //| <BACKUP>
 //| <BATCH>
@@ -3865,7 +5804,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <BITMAPS>
 //| <BITS>
 | <BLOB>
-//| <BLOCK>
+| <BLOCK>
 //| <BLOCK_RANGE>
 //| <BLOCKS>
 //| <BLOCKSIZE>
@@ -3907,6 +5846,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <CHUNK>
 //| <CIV_GB>
 //| <CLASS>
+| <CLASSIFIER>
 //| <CLEAR>
 | <CLOB>
 //| <CLONE>
@@ -3956,8 +5896,8 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <CPU_PER_CALL>
 //| <CPU_PER_SESSION>
 //| <CREATE_STORED_OUTLINES>
-//| <CROSS>
-//| <CUBE>
+| <CROSS>
+| <CUBE>
 //| <CUBE_GB>
 | <CURRENT>
 //| <CURRENT_DATE>
@@ -3968,7 +5908,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <CURSOR>
 //| <CURSOR_SHARING_EXACT>
 //| <CURSOR_SPECIFIC_SEGMENT>
-//| <CYCLE>
+| <CYCLE>
 //| <DANGLING>
 | <DATA>
 | <DATABASE>
@@ -3987,7 +5927,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <DEBUG>
 | <DEC>
 //| <DECLARE>
-//| <DECREMENT>
+| <DECREMENT>
 //| <DECRYPT>
 //| <DEFERRABLE>
 //| <DEFERRED>
@@ -4004,7 +5944,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <DETACHED>
 //| <DETERMINES>
 //| <DICTIONARY>
-//| <DIMENSION>
+| <DIMENSION>
 | <DIRECTORY>
 | <DISABLE>
 //| <DISABLE_RPKE>
@@ -4047,7 +5987,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <ENTRY>
 //| <ERROR>
 //| <ERROR_ON_OVERLAP_TIME>
-//| <ERRORS>
+| <ERRORS>
 | <ESCAPE>
 //| <ESTIMATE>
 //| <EVALNAME>
@@ -4058,7 +5998,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <EXIT>
 //| <EXCHANGE>
 //| <EXCLUDING>
-//| <EXECUTE>
+| <EXECUTE>
 //| <EXEMPT>
 //| <EXPAND_GSET_TO_UNION>
 //| <EXPIRE>
@@ -4085,13 +6025,13 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <FINAL>
 //| <FINE>
 //| <FINISH>
-//| <FIRST>
+| <FIRST>
 //| <FIRST_ROWS>
 //| <FLAGGER>
 //| <FLASHBACK>
 //| <FLOB>
 //| <FLUSH>
-//| <FOLLOWING>
+| <FOLLOWING>
 | <FOLLOWS>
 | <FORCE>
 //| <FORCE_XML_QUERY_REWRITE>
@@ -4100,7 +6040,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <FREELISTS>
 //| <FREEPOOLS>
 //| <FRESH>
-//| <FULL>
+| <FULL>
 | <FUNCTION>
 //| <FUNCTIONS>
 //| <G>
@@ -4112,7 +6052,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <GLOBAL_TOPIC_ENABLED>
 //| <GLOBALLY>
 //| <GROUP_BY>
-//| <GROUPING>
+| <GROUPING>
 //| <GROUPS>
 //| <GUARANTEE>
 //| <GUARANTEED>
@@ -4136,7 +6076,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <IDGENERATORS>
 //| <IDLE_TIME>
 //| <IF>
-//| <IGNORE>
+| <IGNORE>
 //| <IGNORE_OPTIM_EMBEDDED_HINTS>
 //| <IGNORE_WHERE_CLAUSE>
 | <IMMEDIATE>
@@ -4144,7 +6084,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <IN_MEMORY_METADATA>
 //| <INCLUDE_VERSION>
 //| <INCLUDING>
-//| <INCREMENT>
+| <INCREMENT>
 //| <INCREMENTAL>
 //| <INDEX_ASC>
 //| <INDEX_COMBINE>
@@ -4177,7 +6117,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <INITRANS>
 //| <INLINE>
 //| <INLINE_XMLTYPE_NT>
-//| <INNER>
+| <INNER>
 //| <INSTANCE>
 //| <INSTANCES>
 | <INSTANTIABLE>
@@ -4192,13 +6132,13 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <INVALIDATE>
 | <ISOLATION>
 //| <ISOLATION_LEVEL>
-//| <ITERATE>
+| <ITERATE>
 //| <ITERATION_NUMBER>
 | <JAVA>
 //| <JOB>
-//| <JOIN>
+| <JOIN>
 //| <K>
-//| <KEEP>
+| <KEEP>
 //| <KERBEROS>
 //| <KEY>
 //| <KEY_LENGTH>
@@ -4206,8 +6146,8 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <KEYSIZE>
 //| <KILL>
 | <LANGUAGE>
-//| <LAST>
-//| <LATERAL>
+| <LAST>
+| <LATERAL>
 //| <LAYER>
 //| <LDAP_REG_SYNC_INTERVAL>
 //| <LDAP_REGISTRATION>
@@ -4233,7 +6173,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <LOCALTIMESTAMP>
 //| <LOCATION>
 //| <LOCATOR>
-//| <LOCKED>
+| <LOCKED>
 //| <LOG>
 //| <LOGFILE>
 //| <LOGGING>
@@ -4251,7 +6191,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <MAP> // Bug 3512150
 //| <MAPPING>
 //| <MASTER>
-//| <MATCHED>
+| <MATCHED>
 //| <MATERIALIZE>
 //| <MATERIALIZED>
 | <MAX>
@@ -4266,8 +6206,8 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <MAXLOGMEMBERS>
 //| <MAXSIZE>
 //| <MAXTRANS>
-//| <MAXVALUE>
-//| <MEASURES>
+| <MAXVALUE>
+| <MEASURES>
 | <MEMBER>
 //| <MEMORY>
 | <MERGE>
@@ -4282,10 +6222,10 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <MINIMUM>
 //| <MINUS_NULL>
 | <MINUTE>
-//| <MINVALUE>
+| <MINVALUE>
 //| <MIRROR>
 | <MLSLABEL>
-//| <MODEL>
+| <MODEL>
 //| <MODEL_COMPILE_SUBQUERY>
 //| <MODEL_DONTVERIFY_UNIQUENESS>
 //| <MODEL_DYNAMIC_SUBQUERY>
@@ -4308,7 +6248,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <NATIVE>
 //| <NATIVE_FULL_OUTER_JOIN>
 | <NATURAL>
-//| <NAV>
+| <NAV>
 | <NCHAR>
 | <NCHAR_CS>
 | <NCLOB>
@@ -4322,7 +6262,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <NETWORK>
 //| <NEVER>
 | <NEW>
-//| <NEXT>
+| <NEXT>
 //| <NL_AJ>
 //| <NL_SJ>
 //| <NLS_CALENDAR>
@@ -4396,7 +6336,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <NOAUDIT>
 //| <NOCACHE>
 //| <NOCPU_COSTING>
-//| <NOCYCLE>
+| <NOCYCLE>
 //| <NODELAY>
 //| <NOFORCE>
 //| <NOGUARANTEE>
@@ -4439,7 +6379,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <OLD>
 //| <OLD_PUSH_PRED>
 //| <ONLINE>
-//| <ONLY>
+| <ONLY>
 | <OPAQUE>
 //| <OPAQUE_TRANSFORM>
 //| <OPAQUE_XCANONICAL>
@@ -4453,13 +6393,13 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <OPTIMIZER_GOAL>
 //| <OR_EXPAND>
 //| <ORA_ROWSCN>
-//| <ORDERED>
+| <ORDERED>
 //| <ORDERED_PREDICATES>
 //| <ORDINALITY>
 | <ORGANIZATION>
 | <OTHERS>
 //| <OUT_OF_LINE>
-//| <OUTER>
+| <OUTER>
 //| <OUTLINE>
 //| <OUTLINE_LEAF>
 //| <OVER>
@@ -4496,7 +6436,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <PCTTHRESHOLD>
 //| <PCTUSED>
 //| <PCTVERSION>
-//| <PERCENT>
+| <PERCENT>
 //| <PERFORMANCE>
 //| <PERMANENT>
 //| <PFILE>
@@ -4517,7 +6457,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <PQ_MAP>
 //| <PQ_NOMAP>
 //| <PREBUILT>
-//| <PRECEDING>
+| <PRECEDING>
 | <PRECISION>
 //| <PRECOMPUTE_SUBQUERY>
 //| <PREPARE>
@@ -4572,14 +6512,14 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <REDUNDANCY>
 | <REF>
 //| <REF_CASCADE_CURSOR>
-//| <REFERENCE>
+| <REFERENCE>
 //| <REFERENCED>
 //| <REFERENCES>
 //| <REFERENCING>
 //| <REFRESH>
 //| <REGEXP_LIKE>
 //| <REGISTER>
-//| <REJECT>
+| <REJECT>
 //| <REKEY>
 //| <RELATIONAL>
 //| <RELY>
@@ -4615,7 +6555,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <ROLES>
 | <ROLLBACK>
 //| <ROLLING>
-//| <ROLLUP>
+| <ROLLUP>
 | <ROW>
 //| <ROW_LENGTH>
 //| <ROWDEPENDENCIES>
@@ -4623,9 +6563,9 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <ROWNUM>
 | <ROWS>
 //| <RULE>
-//| <RULES>
+| <RULES>
 //| <SALT>
-//| <SAMPLE>
+| <SAMPLE>
 | <SAVE>
 //| <SAVE_AS_INTERVALS>
 | <SAVEPOINT>
@@ -4636,15 +6576,16 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <SCAN_INSTANCES>
 //| <SCHEDULER>
 | <SCHEMA>
-//| <SCN>
+| <SCN>
 //| <SCN_ASCENDING>
 //| <SCOPE>
 //| <SD_ALL>
 //| <SD_INHIBIT>
 //| <SD_SHOW>
+| <SEARCH>
 | <SECOND>
 //| <SECURITY>
-//| <SEED>
+| <SEED>
 //| <SEG_BLOCK>
 //| <SEG_FILE>
 //| <SEGMENT>
@@ -4654,7 +6595,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <SEMIJOIN_DRIVER>
 //| <SEQUENCE>
 //| <SEQUENCED>
-//| <SEQUENTIAL>
+| <SEQUENTIAL>
 //| <SERIALIZABLE>
 | <SERVERERROR>
 //| <SESSION>
@@ -4664,19 +6605,19 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <SESSIONTZNAME>
 | <SET> //SET is defined as a reserved word but is used in "SYS"."DBMS_RESULT_CACHE_API" as a function name and as a Pragma parameter
 //| <SET_TO_JOIN>
-//| <SETS>
+| <SETS>
 //| <SETTINGS>
 //| <SEVERE>
 | <SHARED>
 //| <SHARED_POOL>
 //| <SHRINK>
 | <SHUTDOWN>
-//| <SIBLINGS>
+| <SIBLINGS>
 //| <SID>
 //| <SIMPLE>
-//| <SINGLE>
+| <SINGLE>
 //| <SINGLETASK>
-//| <K_SKIP>
+| <K_SKIP>
 //| <SKIP_EXT_OPTIMIZER>
 //| <SKIP_UNQ_UNUSABLE_IDX>
 //| <SKIP_UNUSABLE_INDEXES>
@@ -4712,7 +6653,7 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <STRUCT>
 //| <STRUCTURE>
 | <SUBMULTISET>
-//| <SUBPARTITION>
+| <SUBPARTITION>
 //| <SUBPARTITION_REL>
 //| <SUBPARTITIONS>
 //| <SUBQUERIES>
@@ -4792,28 +6733,28 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <UID>
 //| <UNARCHIVED>
 //| <UNBOUND>
-//| <UNBOUNDED>
+| <UNBOUNDED>
 | <UNDEFINE>
 | <UNDER>
 //| <UNDO>
 //| <UNDROP>
 //| <UNIFORM>
-//| <UNLIMITED>
+| <UNLIMITED>
 //| <UNLOCK>
 //| <UNNEST>
 //| <UNPACKED>
 //| <UNPROTECTED>
 //| <UNQUIESCE>
 //| <UNRECOVERABLE>
-//| <UNTIL>
+| <UNTIL>
 //| <UNUSABLE>
 //| <UNUSED>
 //| <UPD_INDEXES>
 //| <UPD_JOININDEX>
 //| <UPDATABLE>
-//| <UPDATED>
+| <UPDATED>
 //| <UPGRADE>
-//| <UPSERT>
+| <UPSERT>
 | <UROWID>
 //| <USAGE>
 //| <USE>
@@ -4843,8 +6784,8 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 //| <VECTOR_READ>
 //| <VECTOR_READ_TRACE>
 //| <VERSION>
-//| <VERSIONS>
-//| <WAIT>
+| <VERSIONS>
+| <WAIT>
 //| <WALLET>
 //| <WELLFORMED>
 //| <WHEN>
@@ -4884,6 +6825,102 @@ ASTKEYWORD_UNRESERVED KEYWORD_UNRESERVED (): {}
 | <RENAME> //Although RENAME is an Oracle reserved word, it may be used as a PL/SQL name.
 | <RELEASE> //Although RELEASE is an Oracle reserved word, it may be used as a PL/SQL name. 
 | <INLINE> // PRAGMA INLINE is not a PLSQL reserved word
+//| <SEARCH>
+| <DEPTH>
+| <BREADTH>
+| <PIVOT>
+| <UNPIVOT>
+//| <SAMPLE>
+//| <BLOCK>
+//| <SEED>
+| <CONTAINERS>
+| <PATTERN>  
+| <PER>  
+| <MATCH>  
+| <RECOGNIZE>  
+//| <PERCENT>  
+| <PERMUTE>  
+| <PAST>  
+| <SUBSET>  
+| <RUNNING>  
+//| <FINAL>  
+| <BATCH>
+//| <CLASSIFIER>
+| <COMMITTED>
+| <CONSTRAINT>
+| <EXCLUDE>
+| <INCLUDE>
+| <LOG>
+| <MATCH_NUMBER>
+| <NULLS>
+| <OFFSET>
+| <ONE>
+//| <ORDERED>
+| <PREV>
+| <READ>
+| <SEGMENT>
+| <SERIALIZABLE>
+| <USE>
+| <WORK>
+| <WRITE>
+| <XML>
+| <CORRUPT_XID>
+| <CORRUPT_XID_ALL>
+// Aggregate Functions 
+| <APPROX_COUNT_DISTINCT>
+//| <AVG>
+//| <COLLECT>
+| <CORR>
+//@TODO | <CORR_*>
+| <COUNT>
+| <COVAR_POP>
+| <COVAR_SAMP>
+| <CUME_DIST>
+| <DENSE_RANK>
+//| <FIRST>
+| <GROUP_ID>
+//| <GROUPING>
+| <GROUPING_ID>
+//| <LAST>
+| <LISTAGG>
+//| <MAX>
+| <MEDIAN>
+//| <MIN>
+| <PERCENT_RANK>
+| <PERCENTILE_CONT>
+| <PERCENTILE_DISC>
+| <RANK>
+| <REGR_SLOPE>
+| <REGR_INTERCEPT>
+| <REGR_COUNT>
+| <REGR_R2>
+| <REGR_AVGX>
+| <REGR_AVGY>
+| <REGR_SXX>
+| <REGR_SYY>
+| <REGR_SXY>
+| <STATS_BINOMIAL_TEST>
+| <STATS_CROSSTAB>
+| <STATS_F_TEST>
+| <STATS_KS_TEST>
+| <STATS_MODE>
+| <STATS_MW_TEST>
+| <STATS_ONE_WAY_ANOVA>
+| <STATS_T_TEST_ONE>
+| <STATS_T_TEST_PAIRED>
+| <STATS_T_TEST_INDEP>
+| <STATS_T_TEST_INDEPU>
+| <STATS_WSR_TEST>
+//| <STDDEV>
+| <STDDEV_POP>
+| <STDDEV_SAMP>
+//| <SUM>
+| <SYS_OP_ZONE_ID>
+| <SYS_XMLAGG>
+| <VAR_POP>
+| <VAR_SAMP>
+| <VARIANCE>
+| <XMLAGG>
 )
 
 { jjtThis.setImage(token.toString()) ; jjtThis.value = token ; return jjtThis ; }
@@ -4951,7 +6988,7 @@ ASTID ID(): {}
 		//| <END> |<CURRENT_USER> 
 		| <EXCEPTION> //SYNTAX 
 		| <EXCLUSIVE> //SYNTAX //RESERVED WORD 
-		| <EXECUTE> //SYNTAX 
+		//| <EXECUTE> //SYNTAX 
 		| <EXISTS> //SYNTAX //RESERVED WORD 
 		//| <EXIT> //SYNTAX 
 		//20120501 | <EXTENDS> 
@@ -5202,7 +7239,7 @@ ASTQualifiedID QualifiedID(): {}
 		//<END>
 		//<EXCEPTION>
 		//<EXCLUSIVE>
-		| <EXECUTE>
+		//| <EXECUTE>
 		| <EXISTS>
 		//| <EXIT>
 		//20120501 | <EXTENDS>

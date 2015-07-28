@@ -82,11 +82,11 @@ public abstract class AbstractPLSQLRule extends AbstractRule implements PLSQLPar
     }
 
     public static boolean isQualifiedName(Node node) {
-	return node.getImage().indexOf('.') != -1;
+		return node.getImage().indexOf('.') != -1;
     }
 
     public static boolean importsPackage(ASTInput node, String packageName) {
-	return false;
+		return false;
     }
 
   /*
@@ -784,6 +784,469 @@ public abstract class AbstractPLSQLRule extends AbstractRule implements PLSQLPar
 	public Object visit(ASTAccessibleByClause node, Object data) {
 		return visit((PLSQLNode) node, data);
 	}
+
+	// SQL Parser 
+	// 
+   
+        @Override
+        public Object visit(ASTCommitStatement node, Object data) {
+                return visit((PLSQLNode) node, data);
+        }
+
+
+        @Override
+        public Object visit(ASTRollbackStatement node, Object data) {
+                return visit((PLSQLNode) node, data);
+        }
+
+
+        @Override
+        public Object visit(ASTSavepointStatement node, Object data) {
+                return visit((PLSQLNode) node, data);
+        }
+
+
+        @Override
+        public Object visit(ASTSetTransactionStatement node, Object data) {
+                return visit((PLSQLNode) node, data);
+        }
+
+
+        @Override
+        public Object visit(ASTLockTableStatement node, Object data) {
+                return visit((PLSQLNode) node, data);
+        }
+
+	@Override
+	public Object visit(ASTSqlSelectStatement node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlDeleteStatement node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlDmlTableExpression node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlMergeStatement node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlErrorLoggingClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlInsertStatement node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlInsertIntoClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlValuesClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlUpdateStatement node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlColumnAssignment node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlReturningClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlForUpdateClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSubquery node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlQueryBlock node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSelectClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlTableClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlWithClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlPLSQLDeclarations node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSubqueryRefactoringClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSearchClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlCycleClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSelectList node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlTableReference node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlFlashbackQueryClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlQueryTableExpression node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlPivotClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlReferencedColumns node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlPivotForClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlPivotInClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlUnpivotClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlUnpivotInClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSampleClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlPartitionExtensionClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSubqueryRestrictionClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlTableCollectionExpression node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlCollectionExpression node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlContainersClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlJoinClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlQueryPartitionClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlColumnExpression node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlOuterJoinType node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlCrossOuterApplyClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlWhereClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlHierarchicalQueryClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlGroupByClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRollupCubeClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlGroupingSetsClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlGroupingExpressionList node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlExpressionList node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlModelClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlCellReferenceOptions node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlReturnRowsClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlReferenceModel node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlMainModel node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlModelColumnClauses node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlModelColumn node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlModelRulesClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlModelIterateClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlCellAssignment node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlCondition node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlSingleColumnForLoop node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlMultiColumnForLoop node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlOrderByClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlColumnOrderingClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowLimitingClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternPartitionBy node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternOrderBy node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternMeasures node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternRowsPerMatch node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternSkipTo node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPattern node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternTerm node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternFactor node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternPrimary node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternPermute node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternQuantifier node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternSubsetClause node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternSubsetItem node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternDefinitionList node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternDefinition node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternRecFunction node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternNavigationFunction node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlRowPatternAggregateFunction node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlAggregateFunction node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
+	@Override
+	public Object visit(ASTSqlExpression node, Object data) {
+		return visit((PLSQLNode) node, data);
+	}
+
 
   /*
    * Treat all Executable Code 
