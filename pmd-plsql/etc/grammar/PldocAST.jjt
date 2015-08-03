@@ -1054,6 +1054,17 @@ ASTReadPastNextOccurrence ReadPastNextOccurrence(String target) :
 	{ jjtThis.setImage(sb.toString()) ;  jjtThis.value = sb.toString(); return jjtThis ;}
 }
 
+/*
+//Modified version of https://javacc.java.net/doc/errorrecovery.html
+JAVACODE
+void ReportExceptionAndSkip2NextTerminator(String initiator,String terminator) :
+{
+  ParseException e = generateParseException();  // generate the exception object.
+  System.err.println(e.toString());  // print the error message
+  Skip2NextTerminator(initiator,terminator) ;
+}
+*/
+
 /**
  * 2006-05-24 - Matthias Hendler - added MERGE
  */
@@ -1062,30 +1073,37 @@ ASTSqlStatement SqlStatement(String initiator, String terminator)  :
 {
 	//(<SELECT>|<UPDATE>|<INSERT>|<DELETE>|<COMMIT>|<ROLLBACK>|<SAVEPOINT>|<EXECUTE>|<SET><TRANSACTION>|<LOCK><TABLE>|<MERGE>|<WITH>)
 	//Skip2NextTerminator(initiator,terminator)
-	(
-         // <SELECT>|<WITH>
-	  SqlSelectStatement()
-         |//<UPDATE>
-	  SqlUpdateStatement()
-         |//<DELETE>
-	  SqlDeleteStatement()
-         |//<INSERT>
-	  SqlInsertStatement()
-         |//<MERGE>
-	  SqlMergeStatement()
-         |//<COMMIT>
-	 CommitStatement()
-         |// <ROLLBACK>
-	  RollbackStatement()
-         |// <SAVEPOINT>
-	  SavepointStatement()
-         |// <EXECUTE>
-	  EmbeddedSqlStatement()  
-         |// <SET><TRANSACTION>
-	  SetTransactionStatement()
-         |// <LOCK><TABLE>
-	  LockTableStatement()
-        )
+      try {
+    
+	  (
+	   // <SELECT>|<WITH>
+	    SqlSelectStatement()
+	   |//<UPDATE>
+	    SqlUpdateStatement()
+	   |//<DELETE>
+	    SqlDeleteStatement()
+	   |//<INSERT>
+	    SqlInsertStatement()
+	   |//<MERGE>
+	    SqlMergeStatement()
+	   |//<COMMIT>
+	   CommitStatement()
+	   |// <ROLLBACK>
+	    RollbackStatement()
+	   |// <SAVEPOINT>
+	    SavepointStatement()
+	   |// <EXECUTE>
+	    EmbeddedSqlStatement()  
+	   |// <SET><TRANSACTION>
+	    SetTransactionStatement()
+	   |// <LOCK><TABLE>
+	    LockTableStatement()
+	  )
+	}
+	catch (ParseException e) {
+	  e.printStackTrace(System.err);  // print the error message
+	  Skip2NextTerminator(initiator,terminator);
+	}
 	{
           return jjtThis ;
 	}
@@ -2001,6 +2019,16 @@ ASTSqlColumnAssignment SqlColumnAssignment()  :
 {}
 {
 
+	// Multi-column assigment 
+	(
+		"("
+			//Column Alias List 
+			QualifiedID() ( "," QualifiedID() )* 
+		")"
+		"="
+		 "(" SqlSubquery() ")" 
+	)
+	|
 	// Single-column assignment 
 	(
 		QualifiedName() "=" 
@@ -2009,15 +2037,6 @@ ASTSqlColumnAssignment SqlColumnAssignment()  :
 			| 
 			SqlExpression() 
 		)
-	)
-	| // Multi-column assigment 
-	(
-		"("
-			//Column Alias List 
-			QualifiedID() ( "," QualifiedID() )* 
-		")"
-		"="
-		 "(" SqlSubquery() ")" 
 	)
       { return jjtThis ; }
 }
@@ -2083,7 +2102,7 @@ ASTSqlSubquery SqlSubquery()  :
 		)*
 	  )
 	)
-	SqlOrderByClause()
+	[ SqlOrderByClause() ]
 	SqlRowLimitingClause()
 
       { return jjtThis ; }
@@ -2131,10 +2150,10 @@ ASTSqlSelectClause SqlSelectClause()  :
 	SqlSelectList()
 	<FROM>
 	SqlTableClause() ( ","  SqlTableClause() )*
-	SqlWhereClause() 
-	SqlHierarchicalQueryClause() 
-	SqlGroupByClause() 
-	SqlModelClause() 
+	[ SqlWhereClause()  ]
+	[ SqlHierarchicalQueryClause() ]
+	[ SqlGroupByClause() ]
+	[ SqlModelClause() ]
 
       { return jjtThis ; }
 }
@@ -2236,7 +2255,7 @@ ASTSqlSelectList SqlSelectList()  :
 {}
 {
 	(
-	QualifiedID() "." "*"
+	[ QualifiedID() "." ]  "*"
 	| SqlExpression() [ [ <AS> ] UnqualifiedID() ] //ColumnAlias
 	)
 
@@ -2311,9 +2330,9 @@ ASTSqlFlashbackQueryClause SqlFlashbackQueryClause()  :
 ASTSqlQueryTableExpression SqlQueryTableExpression()  :
 {}
 {
-	UnqualifiedID() //Query Name 
-	|  ( [ <LATERAL> ] "(" SqlSubquery() [ SqlSubqueryRestrictionClause() ] ")"  )
-	|  ( QualifiedID() 
+	( [ <LATERAL> ] "(" SqlSubquery() [ SqlSubqueryRestrictionClause() ] ")"  )
+	|  SqlTableCollectionExpression()
+	|  ( QualifiedName() 
 		[ 
 			(" @" QualifiedID() /* DBLink Name */ )
 			| 
@@ -2321,7 +2340,7 @@ ASTSqlQueryTableExpression SqlQueryTableExpression()  :
 		] 
 		[ SqlSampleClause() ]
 	   )
-	|  SqlTableCollectionExpression()
+	//|  UnqualifiedID() //Query Name 
 
       { return jjtThis ; }
 }
@@ -2648,7 +2667,7 @@ ASTSqlHierarchicalQueryClause SqlHierarchicalQueryClause()  :
 {}
 {
 	(
-		[ <CONNECT> <BY> [ <NOCYCLE> ] SqlCondition() ]
+		<CONNECT> <BY> [ <NOCYCLE> ] SqlCondition() 
 		[ <START> <WITH> SqlCondition() ]
 	)
 	|
